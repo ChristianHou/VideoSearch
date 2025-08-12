@@ -7,3 +7,5 @@ google-api-python-client==2.108.0
 Werkzeug==2.3.7
 requests==2.31.0
 urllib3==2.0.7
+SQLAlchemy>=2.0.25
+schedule==1.2.0

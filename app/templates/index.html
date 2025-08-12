@@ -171,6 +171,33 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 定时任务管理 -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>
+                            <i class="fas fa-clock me-2"></i>定时任务管理
+                        </h4>
+                        <button class="btn btn-primary" onclick="showCreateScheduledTaskModal()">
+                            <i class="fas fa-plus me-1"></i>创建定时任务
+                        </button>
+                    </div>
+                    
+                    <!-- 认证状态提示 -->
+                    <div id="credential-status" class="alert alert-info" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="credential-status-text"></span>
+                    </div>
+                    
+                    <div id="scheduled-tasks-container">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-clock fa-3x mb-3"></i>
+                            <p>暂无定时任务</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -184,6 +211,132 @@
                 </div>
                 <div class="modal-body" id="taskModalBody">
                     <!-- 任务详情内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建定时任务模态框 -->
+    <div class="modal fade" id="createScheduledTaskModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建定时任务</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createScheduledTaskForm">
+                        <div class="mb-3">
+                            <label for="scheduledTaskSelect" class="form-label">选择搜索任务 *</label>
+                            <select class="form-select" id="scheduledTaskSelect" name="task_id" required>
+                                <option value="">请选择搜索任务</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="scheduleType" class="form-label">定时类型 *</label>
+                            <select class="form-select" id="scheduleType" name="schedule_type" required onchange="toggleScheduleFields()">
+                                <option value="">请选择定时类型</option>
+                                <option value="interval">间隔执行</option>
+                                <option value="daily">每日执行</option>
+                                <option value="weekly">每周执行</option>
+                                <option value="monthly">每月执行</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 间隔执行字段 -->
+                        <div id="intervalFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="intervalMinutes" class="form-label">间隔分钟数 *</label>
+                                <input type="number" class="form-control" id="intervalMinutes" name="interval_minutes" min="1" value="60">
+                            </div>
+                        </div>
+                        
+                        <!-- 每日/每周/每月执行字段 -->
+                        <div id="timeFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="scheduleTime" class="form-label">执行时间 *</label>
+                                <input type="time" class="form-control" id="scheduleTime" name="schedule_time" value="09:00">
+                            </div>
+                        </div>
+                        
+                        <!-- 每周执行字段 -->
+                        <div id="weeklyFields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">执行日期 *</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="1" id="monday">
+                                    <label class="form-check-label" for="monday">周一</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="2" id="tuesday">
+                                    <label class="form-check-label" for="tuesday">周二</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="3" id="wednesday">
+                                    <label class="form-check-label" for="wednesday">周三</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="4" id="thursday">
+                                    <label class="form-check-label" for="thursday">周四</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="5" id="friday">
+                                    <label class="form-check-label" for="friday">周五</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="6" id="saturday">
+                                    <label class="form-check-label" for="saturday">周六</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="schedule_days" value="7" id="sunday">
+                                    <label class="form-check-label" for="sunday">周日</label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 每月执行字段 -->
+                        <div id="monthlyFields" style="display: none;">
+                            <div class="mb-3">
+                                <label for="scheduleDate" class="form-label">每月第几天执行 *</label>
+                                <input type="number" class="form-control" id="scheduleDate" name="schedule_date" min="1" max="31" value="1">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createScheduledTask()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 定时任务详情模态框 -->
+    <div class="modal fade" id="scheduledTaskModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">定时任务详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="scheduledTaskModalBody">
+                    <!-- 定时任务详情内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 执行结果视频列表模态框 -->
+    <div class="modal fade" id="executionVideosModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">执行结果视频列表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="executionVideosModalBody">
+                    <!-- 视频列表内容 -->
                 </div>
             </div>
         </div>
@@ -208,14 +361,39 @@
             loadRegions();
             loadLanguages();
             refreshTasks();
+            refreshScheduledTasks();
             checkAuthStatus();
+            checkCredentialStatus();
+            
+            // 定期检查认证状态（每5秒检查一次）
+            setInterval(refreshAuthStatus, 5000);
         });
         
         // 检查认证状态
-        function checkAuthStatus() {
-            // 这里可以添加检查用户是否已登录的逻辑
-            // 暂时隐藏登出按钮
-            document.getElementById('logout-btn').style.display = 'none';
+        async function checkAuthStatus() {
+            try {
+                // 使用专门的认证状态检查API
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                if (data.success && data.authenticated) {
+                    // 已认证
+                    document.getElementById('login-btn').style.display = 'none';
+                    document.getElementById('logout-btn').style.display = 'inline-block';
+                    return true;
+                } else {
+                    // 未认证
+                    document.getElementById('login-btn').style.display = 'inline-block';
+                    document.getElementById('logout-btn').style.display = 'none';
+                    return false;
+                }
+            } catch (error) {
+                // 出错时默认显示登录按钮
+                console.error('检查认证状态失败:', error);
+                document.getElementById('login-btn').style.display = 'inline-block';
+                document.getElementById('logout-btn').style.display = 'none';
+                return false;
+            }
         }
         
         // 加载地区列表
@@ -330,49 +508,72 @@
                 return;
             }
             
-            container.innerHTML = currentTasks.map(task => `
-                <div class="card task-card mb-3">
-                    <div class="card-body">
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <h6 class="card-title mb-1">
-                                    <i class="fas fa-search me-2"></i>${task.query}
-                                </h6>
-                                <p class="card-text text-muted mb-2">
-                                    <small>
-                                        <i class="fas fa-calendar me-1"></i>创建时间: ${formatDate(task.created_at)}
-                                        <span class="mx-2">|</span>
-                                        <i class="fas fa-list me-1"></i>最大结果: ${task.max_results}
-                                    </small>
-                                </p>
-                                <div class="mb-2">
-                                    ${task.region_code ? `<span class="badge bg-info me-1">地区: ${task.region_code}</span>` : ''}
-                                    ${task.relevance_language ? `<span class="badge bg-info me-1">语言: ${task.relevance_language}</span>` : ''}
-                                    ${task.video_duration ? `<span class="badge bg-info me-1">时长: ${task.video_duration}</span>` : ''}
+            container.innerHTML = currentTasks.map(task => {
+                // 构建搜索参数显示
+                let searchParams = [];
+                if (task.region_code) searchParams.push(`地区: ${task.region_code}`);
+                if (task.relevance_language) searchParams.push(`语言: ${task.relevance_language}`);
+                if (task.video_duration) searchParams.push(`时长: ${getVideoDurationText(task.video_duration)}`);
+                if (task.video_definition) searchParams.push(`质量: ${getVideoDefinitionText(task.video_definition)}`);
+                if (task.video_type) searchParams.push(`类型: ${getVideoTypeText(task.video_type)}`);
+                
+                // 构建发布时间区间显示
+                let dateRange = '';
+                if (task.published_after || task.published_before) {
+                    const after = task.published_after ? formatDate(task.published_after) : '不限';
+                    const before = task.published_before ? formatDate(task.published_before) : '不限';
+                    dateRange = `${after} 至 ${before}`;
+                } else {
+                    dateRange = '不限';
+                }
+                
+                return `
+                    <div class="card task-card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="card-title mb-1">
+                                        <i class="fas fa-search me-2"></i>${task.query}
+                                    </h6>
+                                    <p class="card-text text-muted mb-2">
+                                        <small>
+                                            <i class="fas fa-calendar me-1"></i>创建时间: ${formatDate(task.created_at)}
+                                            <span class="mx-2">|</span>
+                                            <i class="fas fa-list me-1"></i>最大结果: ${task.max_results}
+                                        </small>
+                                    </p>
+                                    <p class="card-text text-muted mb-2">
+                                        <small>
+                                            <i class="fas fa-clock me-1"></i>发布时间: ${dateRange}
+                                        </small>
+                                    </p>
+                                    <div class="mb-2">
+                                        ${searchParams.map(param => `<span class="badge bg-info me-1">${param}</span>`).join('')}
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="col-md-4 text-end">
-                                <span class="badge ${getStatusBadgeClass(task.status)} status-badge mb-2">
-                                    ${getStatusText(task.status)}
-                                </span>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewTask('${task.id}')">
-                                        <i class="fas fa-eye"></i> 查看
-                                    </button>
-                                    ${task.status === 'pending' ? `
-                                        <button class="btn btn-sm btn-success me-1" onclick="executeTask('${task.id}')">
-                                            <i class="fas fa-play"></i> 执行
+                                <div class="col-md-4 text-end">
+                                    <span class="badge ${getStatusBadgeClass(task.status)} status-badge mb-2">
+                                        ${getStatusText(task.status)}
+                                    </span>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewTask('${task.id}')">
+                                            <i class="fas fa-eye"></i> 查看
                                         </button>
-                                    ` : ''}
-                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTask('${task.id}')">
-                                        <i class="fas fa-trash"></i> 删除
-                                    </button>
+                                        ${task.status === 'pending' ? `
+                                            <button class="btn btn-sm btn-success me-1" onclick="executeTask('${task.id}')">
+                                                <i class="fas fa-play"></i> 执行
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTask('${task.id}')">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
         // 获取状态徽章样式
@@ -400,6 +601,35 @@
             if (!dateString) return '未知';
             const date = new Date(dateString);
             return date.toLocaleString('zh-CN');
+        }
+        
+        // 获取视频时长文本
+        function getVideoDurationText(duration) {
+            const durationMap = {
+                'short': '短于4分钟',
+                'medium': '4-20分钟',
+                'long': '长于20分钟'
+            };
+            return durationMap[duration] || duration;
+        }
+        
+        // 获取视频质量文本
+        function getVideoDefinitionText(definition) {
+            const definitionMap = {
+                'high': '高清',
+                'standard': '标清'
+            };
+            return definitionMap[definition] || definition;
+        }
+        
+        // 获取视频类型文本
+        function getVideoTypeText(type) {
+            const typeMap = {
+                'movie': '电影',
+                'episode': '剧集',
+                'any': '任意'
+            };
+            return typeMap[type] || type;
         }
         
         // 查看任务详情
@@ -466,30 +696,46 @@
                 return '<p class="text-muted">暂无搜索结果</p>';
             }
             
-            return results.items.map(item => `
-                <div class="video-item">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <img src="${item.snippet.thumbnails?.default?.url || ''}" 
-                                 alt="缩略图" class="img-fluid rounded">
-                        </div>
-                        <div class="col-md-9">
-                            <h6 class="mb-1">
-                                <a href="https://www.youtube.com/watch?v=${item.id.videoId}" 
-                                   target="_blank" class="text-decoration-none">
-                                    ${item.snippet.title}
-                                </a>
-                            </h6>
-                            <p class="text-muted mb-1">${item.snippet.description}</p>
-                            <small class="text-muted">
-                                <i class="fas fa-user me-1"></i>${item.snippet.channelTitle}
-                                <span class="mx-2">|</span>
-                                <i class="fas fa-calendar me-1"></i>${formatDate(item.snippet.publishedAt)}
-                            </small>
+            return results.items.map(item => {
+                // 提取缩略图URL，支持多种质量
+                let thumbnailUrl = 'https://via.placeholder.com/120x90?text=无缩略图';
+                if (item.snippet && item.snippet.thumbnails) {
+                    // 优先使用中等质量的缩略图
+                    if (item.snippet.thumbnails.medium && item.snippet.thumbnails.medium.url) {
+                        thumbnailUrl = item.snippet.thumbnails.medium.url;
+                    } else if (item.snippet.thumbnails.default && item.snippet.thumbnails.default.url) {
+                        thumbnailUrl = item.snippet.thumbnails.default.url;
+                    } else if (item.snippet.thumbnails.high && item.snippet.thumbnails.high.url) {
+                        thumbnailUrl = item.snippet.thumbnails.high.url;
+                    }
+                }
+                
+                return `
+                    <div class="video-item">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <img src="${thumbnailUrl}" 
+                                     alt="缩略图" class="img-fluid rounded"
+                                     onerror="this.src='https://via.placeholder.com/120x90?text=加载失败'">
+                            </div>
+                            <div class="col-md-9">
+                                <h6 class="mb-1">
+                                    <a href="https://www.youtube.com/watch?v=${item.id.videoId}" 
+                                       target="_blank" class="text-decoration-none">
+                                        ${item.snippet.title || '无标题'}
+                                    </a>
+                                </h6>
+                                <p class="text-muted mb-1">${item.snippet.description || '暂无描述'}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>${item.snippet.channelTitle || '未知频道'}
+                                    <span class="mx-2">|</span>
+                                    <i class="fas fa-calendar me-1"></i>${formatDate(item.snippet.publishedAt)}
+                                </small>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
         
         // 执行任务
@@ -545,8 +791,21 @@
         // 登出
         function logout() {
             if (confirm('确定要登出吗？')) {
+                // 先清除本地状态
+                document.getElementById('login-btn').style.display = 'inline-block';
+                document.getElementById('logout-btn').style.display = 'none';
+                checkCredentialStatus();
+                
+                // 然后跳转到登出页面
                 window.location.href = '/logout';
             }
+        }
+        
+        // 刷新认证状态
+        async function refreshAuthStatus() {
+            const isAuthenticated = await checkAuthStatus();
+            checkCredentialStatus();
+            return isAuthenticated;
         }
         
         // 显示加载指示器
@@ -581,6 +840,589 @@
             } finally {
                 hideLoading();
             }
+        }
+
+        // ==================== 定时任务管理 ====================
+        
+        // 刷新定时任务列表
+        async function refreshScheduledTasks() {
+            try {
+                const response = await fetch('/api/scheduled-tasks');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderScheduledTasks(data.scheduled_tasks);
+                } else {
+                    console.error('获取定时任务列表失败:', data.error);
+                }
+            } catch (error) {
+                console.error('刷新定时任务失败:', error);
+            }
+        }
+        
+        // 检查认证状态
+        function checkCredentialStatus() {
+            const loginBtn = document.getElementById('login-btn');
+            const credentialStatus = document.getElementById('credential-status');
+            const credentialStatusText = document.getElementById('credential-status-text');
+            
+            if (loginBtn.style.display === 'none') {
+                // 用户已登录
+                credentialStatus.style.display = 'block';
+                credentialStatus.className = 'alert alert-success';
+                credentialStatusText.innerHTML = '<i class="fas fa-check-circle me-1"></i>已认证，定时任务可以正常执行YouTube API搜索';
+            } else {
+                // 用户未登录
+                credentialStatus.style.display = 'block';
+                credentialStatus.className = 'alert alert-warning';
+                credentialStatusText.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>未认证，定时任务无法执行YouTube API搜索，请先登录';
+            }
+        }
+        
+        // 渲染定时任务列表
+        function renderScheduledTasks(scheduledTasks) {
+            const container = document.getElementById('scheduled-tasks-container');
+            
+            if (!scheduledTasks || scheduledTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-clock fa-3x mb-3"></i>
+                        <p>暂无定时任务</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = scheduledTasks.map(task => {
+                // 构建搜索参数显示
+                let searchParams = [];
+                if (task.task.region_code) searchParams.push(`地区: ${task.task.region_code}`);
+                if (task.task.relevance_language) searchParams.push(`语言: ${task.task.relevance_language}`);
+                if (task.task.video_duration) searchParams.push(`时长: ${getVideoDurationText(task.task.video_duration)}`);
+                if (task.task.video_definition) searchParams.push(`质量: ${getVideoDefinitionText(task.task.video_definition)}`);
+                if (task.task.video_type) searchParams.push(`类型: ${getVideoTypeText(task.task.video_type)}`);
+                
+                // 构建发布时间区间显示
+                let dateRange = '';
+                if (task.task.published_after || task.task.published_before) {
+                    const after = task.task.published_after ? formatDate(task.task.published_after) : '不限';
+                    const before = task.task.published_before ? formatDate(task.task.published_before) : '不限';
+                    dateRange = `${after} 至 ${before}`;
+                } else {
+                    dateRange = '不限';
+                }
+                
+                return `
+                    <div class="card task-card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="card-title mb-1">
+                                        <i class="fas fa-clock me-2"></i>${task.task.query}
+                                    </h6>
+                                    <p class="card-text text-muted mb-2">
+                                        <small>
+                                            <i class="fas fa-calendar me-1"></i>创建时间: ${formatDate(task.created_at)}
+                                            <span class="mx-2">|</span>
+                                            <i class="fas fa-clock me-1"></i>定时类型: ${getScheduleTypeText(task.schedule_type)}
+                                        </small>
+                                    </p>
+                                    <p class="card-text text-muted mb-2">
+                                        <small>
+                                            <i class="fas fa-list me-1"></i>最大结果: ${task.task.max_results}
+                                            <span class="mx-2">|</span>
+                                            <i class="fas fa-clock me-1"></i>发布时间: ${dateRange}
+                                        </small>
+                                    </p>
+                                    <div class="mb-2">
+                                        <span class="badge ${task.is_active ? 'bg-success' : 'bg-secondary'} me-1">
+                                            ${task.is_active ? '已启用' : '已禁用'}
+                                        </span>
+                                        ${task.next_run ? `<span class="badge bg-info me-1">下次执行: ${formatDate(task.next_run)}</span>` : ''}
+                                        ${searchParams.map(param => `<span class="badge bg-info me-1">${param}</span>`).join('')}
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary me-1" onclick="viewScheduledTask(${task.id})">
+                                            <i class="fas fa-eye"></i> 查看
+                                        </button>
+                                        <button class="btn btn-sm ${task.is_active ? 'btn-warning' : 'btn-success'} me-1" onclick="toggleScheduledTask(${task.id})">
+                                            <i class="fas fa-${task.is_active ? 'pause' : 'play'}"></i> ${task.is_active ? '禁用' : '启用'}
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" onclick="deleteScheduledTask(${task.id})">
+                                            <i class="fas fa-trash"></i> 删除
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 获取定时类型文本
+        function getScheduleTypeText(scheduleType) {
+            const types = {
+                'interval': '间隔执行',
+                'daily': '每日执行',
+                'weekly': '每周执行',
+                'monthly': '每月执行'
+            };
+            return types[scheduleType] || scheduleType;
+        }
+        
+        // 显示创建定时任务模态框
+        function showCreateScheduledTaskModal() {
+            loadTasksForScheduling();
+            new bootstrap.Modal(document.getElementById('createScheduledTaskModal')).show();
+        }
+        
+        // 加载可用的搜索任务
+        async function loadTasksForScheduling() {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const select = document.getElementById('scheduledTaskSelect');
+                    select.innerHTML = '<option value="">请选择搜索任务</option>';
+                    
+                    data.tasks.forEach(task => {
+                        const option = document.createElement('option');
+                        option.value = task.id;
+                        option.textContent = `${task.query} (${task.status})`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载任务列表失败:', error);
+            }
+        }
+        
+        // 切换定时字段显示
+        function toggleScheduleFields() {
+            const scheduleType = document.getElementById('scheduleType').value;
+            
+            // 隐藏所有字段
+            document.getElementById('intervalFields').style.display = 'none';
+            document.getElementById('timeFields').style.display = 'none';
+            document.getElementById('weeklyFields').style.display = 'none';
+            document.getElementById('monthlyFields').style.display = 'none';
+            
+            // 根据类型显示相应字段
+            if (scheduleType === 'interval') {
+                document.getElementById('intervalFields').style.display = 'block';
+            } else if (scheduleType === 'daily') {
+                document.getElementById('timeFields').style.display = 'block';
+            } else if (scheduleType === 'weekly') {
+                document.getElementById('timeFields').style.display = 'block';
+                document.getElementById('weeklyFields').style.display = 'block';
+            } else if (scheduleType === 'monthly') {
+                document.getElementById('timeFields').style.display = 'block';
+                document.getElementById('monthlyFields').style.display = 'block';
+            }
+        }
+        
+        // 创建定时任务
+        async function createScheduledTask() {
+            const form = document.getElementById('createScheduledTaskForm');
+            const formData = new FormData(form);
+            
+            // 验证必填字段
+            const taskId = formData.get('task_id');
+            const scheduleType = formData.get('schedule_type');
+            
+            if (!taskId || !scheduleType) {
+                alert('请填写必填字段');
+                return;
+            }
+            
+            // 构建请求数据
+            const requestData = {
+                task_id: taskId,
+                schedule_type: scheduleType
+            };
+            
+            // 根据类型添加相应字段
+            if (scheduleType === 'interval') {
+                const intervalMinutes = formData.get('interval_minutes');
+                if (!intervalMinutes) {
+                    alert('请输入间隔分钟数');
+                    return;
+                }
+                requestData.interval_minutes = parseInt(intervalMinutes);
+            } else {
+                const scheduleTime = formData.get('schedule_time');
+                if (!scheduleTime) {
+                    alert('请选择执行时间');
+                    return;
+                }
+                requestData.schedule_time = scheduleTime;
+                
+                if (scheduleType === 'weekly') {
+                    const selectedDays = Array.from(formData.getAll('schedule_days'));
+                    if (selectedDays.length === 0) {
+                        alert('请选择至少一个执行日期');
+                        return;
+                    }
+                    requestData.schedule_days = selectedDays.join(',');
+                } else if (scheduleType === 'monthly') {
+                    const scheduleDate = formData.get('schedule_date');
+                    if (!scheduleDate) {
+                        alert('请输入每月执行日期');
+                        return;
+                    }
+                    requestData.schedule_date = parseInt(scheduleDate);
+                }
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch('/api/scheduled-tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('定时任务创建成功！');
+                    bootstrap.Modal.getInstance(document.getElementById('createScheduledTaskModal')).hide();
+                    form.reset();
+                    refreshScheduledTasks();
+                } else {
+                    alert('创建定时任务失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('创建定时任务失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 查看定时任务详情
+        async function viewScheduledTask(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const scheduledTask = data.scheduled_task;
+                    const modalBody = document.getElementById('scheduledTaskModalBody');
+                    
+                    modalBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>定时任务信息</h6>
+                                <table class="table table-sm">
+                                    <tr><td>ID:</td><td>${scheduledTask.id}</td></tr>
+                                    <tr><td>状态:</td><td><span class="badge ${scheduledTask.is_active ? 'bg-success' : 'bg-secondary'}">${scheduledTask.is_active ? '已启用' : '已禁用'}</span></td></tr>
+                                    <tr><td>创建时间:</td><td>${formatDate(scheduledTask.created_at)}</td></tr>
+                                    <tr><td>下次执行:</td><td>${scheduledTask.next_run ? formatDate(scheduledTask.next_run) : '未设置'}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>定时设置</h6>
+                                <table class="table table-sm">
+                                    <tr><td>定时类型:</td><td>${getScheduleTypeText(scheduledTask.schedule_type)}</td></tr>
+                                    ${scheduledTask.interval_minutes ? `<tr><td>间隔分钟:</td><td>${scheduledTask.interval_minutes}</td></tr>` : ''}
+                                    ${scheduledTask.schedule_time ? `<tr><td>执行时间:</td><td>${scheduledTask.schedule_time}</td></tr>` : ''}
+                                    ${scheduledTask.schedule_days ? `<tr><td>执行日期:</td><td>${scheduledTask.schedule_days}</td></tr>` : ''}
+                                    ${scheduledTask.schedule_date ? `<tr><td>每月日期:</td><td>${scheduledTask.schedule_date}</td></tr>` : ''}
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h6>关联的搜索任务</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <h6>${scheduledTask.task.query}</h6>
+                                <p class="text-muted mb-2">
+                                    <small>
+                                        <i class="fas fa-calendar me-1"></i>创建时间: ${formatDate(scheduledTask.task.created_at)}
+                                        <span class="mx-2">|</span>
+                                        <i class="fas fa-list me-1"></i>最大结果: ${scheduledTask.task.max_results}
+                                    </small>
+                                </p>
+                                <div class="mb-2">
+                                    ${scheduledTask.task.region_code ? `<span class="badge bg-info me-1">地区: ${scheduledTask.task.region_code}</span>` : ''}
+                                    ${scheduledTask.task.relevance_language ? `<span class="badge bg-info me-1">语言: ${scheduledTask.task.relevance_language}</span>` : ''}
+                                    ${scheduledTask.task.video_duration ? `<span class="badge bg-info me-1">时长: ${scheduledTask.task.video_duration}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h6>执行历史</h6>
+                        <div id="executionHistory">
+                            <div class="text-center">
+                                <div class="spinner-border" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    new bootstrap.Modal(document.getElementById('scheduledTaskModal')).show();
+                    
+                    // 加载执行历史
+                    loadExecutionHistory(scheduledTaskId);
+                }
+            } catch (error) {
+                alert('获取定时任务详情失败: ' + error.message);
+            }
+        }
+        
+        // 加载执行历史
+        async function loadExecutionHistory(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/executions`);
+                const data = await response.json();
+                
+                const historyContainer = document.getElementById('executionHistory');
+                
+                if (data.success && data.executions && data.executions.length > 0) {
+                    historyContainer.innerHTML = data.executions.map(execution => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <h6 class="mb-1">
+                                            <span class="badge ${execution.status === 'success' ? 'bg-success' : 'bg-danger'} me-2">
+                                                ${execution.status === 'success' ? '成功' : '失败'}
+                                            </span>
+                                            执行时间: ${formatDate(execution.started_at)}
+                                        </h6>
+                                        ${execution.status === 'success' ? 
+                                            `<p class="text-muted mb-1">找到 ${execution.videos_count} 个视频</p>` : 
+                                            `<p class="text-danger mb-1">${execution.error_message || '未知错误'}</p>`
+                                        }
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <small class="text-muted">
+                                            耗时: ${execution.completed_at ? 
+                                                Math.round((new Date(execution.completed_at) - new Date(execution.started_at)) / 1000) + '秒' : 
+                                                '未完成'
+                                            }
+                                        </small>
+                                        ${execution.status === 'success' && execution.videos_count > 0 ? 
+                                            `<br><button class="btn btn-sm btn-outline-primary mt-1" onclick="showExecutionVideos(${execution.id}, '${execution.execution_id}')">
+                                                <i class="fas fa-video"></i> 查看视频
+                                            </button>` : ''
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    historyContainer.innerHTML = '<p class="text-muted text-center">暂无执行历史</p>';
+                }
+            } catch (error) {
+                document.getElementById('executionHistory').innerHTML = '<p class="text-danger text-center">加载执行历史失败</p>';
+            }
+        }
+        
+        // 切换定时任务状态
+        async function toggleScheduledTask(scheduledTaskId) {
+            try {
+                // 获取当前任务状态，然后切换
+                const currentResponse = await fetch(`/api/scheduled-tasks/${scheduledTaskId}`);
+                const currentData = await currentResponse.json();
+                
+                if (!currentData.success) {
+                    alert('获取定时任务状态失败: ' + currentData.error);
+                    return;
+                }
+                
+                const currentStatus = currentData.scheduled_task.is_active;
+                const newStatus = !currentStatus;
+                
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/toggle`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        is_active: newStatus
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('定时任务状态更新成功！');
+                    refreshScheduledTasks();
+                } else {
+                    alert('更新定时任务状态失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('更新定时任务状态失败: ' + error.message);
+            }
+        }
+        
+        // 删除定时任务
+        async function deleteScheduledTask(scheduledTaskId) {
+            if (!confirm('确定要删除这个定时任务吗？此操作不可恢复。')) return;
+            
+            try {
+                showLoading();
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('定时任务删除成功！');
+                    refreshScheduledTasks();
+                } else {
+                    alert('删除定时任务失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('删除定时任务失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 显示执行结果视频列表
+        async function showExecutionVideos(executionId, executionUuid) {
+            try {
+                // 获取执行结果详情
+                const response = await fetch(`/api/scheduled-tasks/executions/${executionId}/videos`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const videos = data.videos;
+                    const modalBody = document.getElementById('executionVideosModalBody');
+                    
+                    if (videos && videos.length > 0) {
+                        modalBody.innerHTML = `
+                            <div class="mb-3">
+                                <h6>执行ID: ${executionUuid}</h6>
+                                <p class="text-muted">共找到 ${videos.length} 个视频</p>
+                            </div>
+                            <div class="results-container">
+                                ${renderExecutionVideos(videos)}
+                            </div>
+                        `;
+                    } else {
+                        modalBody.innerHTML = '<p class="text-muted text-center">暂无视频数据</p>';
+                    }
+                    
+                    new bootstrap.Modal(document.getElementById('executionVideosModal')).show();
+                } else {
+                    alert('获取视频列表失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('获取视频列表失败: ' + error.message);
+            }
+        }
+        
+        // 渲染执行结果视频列表
+        function renderExecutionVideos(videos) {
+            if (!videos || videos.length === 0) {
+                return '<p class="text-muted">暂无视频数据</p>';
+            }
+            
+            return videos.map((video, index) => {
+                // 提取缩略图URL，支持多种数据结构
+                let thumbnailUrl = 'https://via.placeholder.com/120x90?text=无缩略图';
+                if (video.snippet && video.snippet.thumbnails) {
+                    // 优先使用中等质量的缩略图
+                    if (video.snippet.thumbnails.medium && video.snippet.thumbnails.medium.url) {
+                        thumbnailUrl = video.snippet.thumbnails.medium.url;
+                    } else if (video.snippet.thumbnails.default && video.snippet.thumbnails.default.url) {
+                        thumbnailUrl = video.snippet.thumbnails.default.url;
+                    } else if (video.snippet.thumbnails.high && video.snippet.thumbnails.high.url) {
+                        thumbnailUrl = video.snippet.thumbnails.high.url;
+                    }
+                } else if (video.thumbnails) {
+                    // 直接访问thumbnails的情况
+                    if (video.thumbnails.medium && video.thumbnails.medium.url) {
+                        thumbnailUrl = video.thumbnails.medium.url;
+                    } else if (video.thumbnails.default && video.thumbnails.default.url) {
+                        thumbnailUrl = video.thumbnails.default.url;
+                    } else if (video.thumbnails.high && video.thumbnails.high.url) {
+                        thumbnailUrl = video.thumbnails.high.url;
+                    }
+                }
+                
+                // 提取视频ID
+                let videoId = '';
+                if (video.id && video.id.videoId) {
+                    videoId = video.id.videoId;
+                } else if (video.video_id) {
+                    videoId = video.video_id;
+                } else if (video.id) {
+                    videoId = video.id;
+                }
+                
+                // 提取标题
+                let title = `视频 ${index + 1}`;
+                if (video.snippet && video.snippet.title) {
+                    title = video.snippet.title;
+                } else if (video.title) {
+                    title = video.title;
+                }
+                
+                // 提取描述
+                let description = '暂无描述';
+                if (video.snippet && video.snippet.description) {
+                    description = video.snippet.description;
+                } else if (video.description) {
+                    description = video.description;
+                }
+                
+                // 提取频道名称
+                let channelTitle = '未知频道';
+                if (video.snippet && video.snippet.channelTitle) {
+                    channelTitle = video.snippet.channelTitle;
+                } else if (video.channel_title) {
+                    channelTitle = video.channel_title;
+                }
+                
+                // 提取发布日期
+                let publishedAt = '';
+                if (video.snippet && video.snippet.publishedAt) {
+                    publishedAt = video.snippet.publishedAt;
+                } else if (video.published_at) {
+                    publishedAt = video.published_at;
+                }
+                
+                return `
+                    <div class="video-item">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <img src="${thumbnailUrl}" 
+                                     alt="缩略图" class="img-fluid rounded" 
+                                     onerror="this.src='https://via.placeholder.com/120x90?text=加载失败'">
+                            </div>
+                            <div class="col-md-9">
+                                <h6 class="mb-1">
+                                    <a href="https://www.youtube.com/watch?v=${videoId}" 
+                                       target="_blank" class="text-decoration-none">
+                                        ${title}
+                                    </a>
+                                </h6>
+                                <p class="text-muted mb-1">${description}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-user me-1"></i>${channelTitle}
+                                    <span class="mx-2">|</span>
+                                    <i class="fas fa-calendar me-1"></i>${formatDate(publishedAt)}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
     </script>
 </body>

@@ -171,6 +171,27 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 定时任务管理 -->
+            <div class="row mt-5">
+                <div class="col-12">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4>
+                            <i class="fas fa-clock me-2"></i>定时任务管理
+                        </h4>
+                        <button class="btn btn-outline-success" onclick="showCreateScheduledTaskModal()">
+                            <i class="fas fa-plus me-1"></i>创建定时任务
+                        </button>
+                    </div>
+                    
+                    <div id="scheduled-tasks-container">
+                        <div class="text-center text-muted py-5">
+                            <i class="fas fa-clock fa-3x mb-3"></i>
+                            <p>暂无定时任务</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -184,6 +205,109 @@
                 </div>
                 <div class="modal-body" id="taskModalBody">
                     <!-- 任务详情内容 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建定时任务模态框 -->
+    <div class="modal fade" id="createScheduledTaskModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">创建定时任务</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scheduledTaskForm">
+                        <div class="mb-3">
+                            <label for="scheduled_task_id" class="form-label">选择任务 *</label>
+                            <select class="form-select" id="scheduled_task_id" name="task_id" required>
+                                <option value="">请选择要定时执行的任务</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="schedule_type" class="form-label">调度类型 *</label>
+                            <select class="form-select" id="schedule_type" name="schedule_type" required onchange="toggleScheduleFields()">
+                                <option value="">请选择调度类型</option>
+                                <option value="interval">间隔执行</option>
+                                <option value="daily">每日执行</option>
+                                <option value="weekly">每周执行</option>
+                                <option value="monthly">每月执行</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 间隔执行字段 -->
+                        <div id="interval_fields" class="mb-3" style="display: none;">
+                            <label for="interval_minutes" class="form-label">间隔时间（分钟）</label>
+                            <input type="number" class="form-control" id="interval_minutes" name="interval_minutes" min="1" value="60">
+                        </div>
+                        
+                        <!-- 时间字段 -->
+                        <div id="time_fields" class="mb-3" style="display: none;">
+                            <label for="schedule_time" class="form-label">执行时间</label>
+                            <input type="time" class="form-control" id="schedule_time" name="schedule_time" value="09:00">
+                        </div>
+                        
+                        <!-- 每周执行字段 -->
+                        <div id="weekly_fields" class="mb-3" style="display: none;">
+                            <label class="form-label">执行日期</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="1" id="day_1">
+                                <label class="form-check-label" for="day_1">周一</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="2" id="day_2">
+                                <label class="form-check-label" for="day_2">周二</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="3" id="day_3">
+                                <label class="form-check-label" for="day_3">周三</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="4" id="day_4">
+                                <label class="form-check-label" for="day_4">周四</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="5" id="day_5">
+                                <label class="form-check-label" for="day_5">周五</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="6" id="day_6">
+                                <label class="form-check-label" for="day_6">周六</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="7" id="day_7">
+                                <label class="form-check-label" for="day_7">周日</label>
+                            </div>
+                        </div>
+                        
+                        <!-- 每月执行字段 -->
+                        <div id="monthly_fields" class="mb-3" style="display: none;">
+                            <label for="schedule_date" class="form-label">执行日期（每月第几天）</label>
+                            <input type="number" class="form-control" id="schedule_date" name="schedule_date" min="1" max="31" value="1">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createScheduledTask()">创建</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 定时任务详情模态框 -->
+    <div class="modal fade" id="scheduledTaskModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">定时任务详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="scheduledTaskModalBody">
+                    <!-- 定时任务详情内容 -->
                 </div>
             </div>
         </div>
@@ -208,6 +332,7 @@
             loadRegions();
             loadLanguages();
             refreshTasks();
+            refreshScheduledTasks();
             checkAuthStatus();
         });
         
@@ -578,6 +703,375 @@
                 }
             } catch (error) {
                 alert('网络测试失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // ========== 定时任务管理相关函数 ==========
+        
+        // 刷新定时任务列表
+        async function refreshScheduledTasks() {
+            try {
+                const response = await fetch('/api/scheduled-tasks');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderScheduledTasks(data.scheduled_tasks);
+                } else {
+                    console.error('获取定时任务列表失败:', data.error);
+                }
+            } catch (error) {
+                console.error('刷新定时任务失败:', error);
+            }
+        }
+        
+        // 渲染定时任务列表
+        function renderScheduledTasks(scheduledTasks) {
+            const container = document.getElementById('scheduled-tasks-container');
+            
+            if (scheduledTasks.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="fas fa-clock fa-3x mb-3"></i>
+                        <p>暂无定时任务</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = scheduledTasks.map(st => `
+                <div class="card task-card mb-3">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="card-title mb-1">
+                                    <i class="fas fa-clock me-2"></i>${st.task.query}
+                                </h6>
+                                <p class="card-text text-muted mb-2">
+                                    <small>
+                                        <i class="fas fa-calendar me-1"></i>创建时间: ${formatDate(st.created_at)}
+                                        <span class="mx-2">|</span>
+                                        <i class="fas fa-clock me-1"></i>下次执行: ${formatDate(st.next_run)}
+                                    </small>
+                                </p>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary me-1">类型: ${getScheduleTypeText(st.schedule_type)}</span>
+                                    ${st.schedule_type === 'interval' ? 
+                                        `<span class="badge bg-info me-1">间隔: ${st.interval_minutes}分钟</span>` : ''}
+                                    ${st.schedule_type === 'daily' ? 
+                                        `<span class="badge bg-info me-1">时间: ${st.schedule_time}</span>` : ''}
+                                    ${st.schedule_type === 'weekly' ? 
+                                        `<span class="badge bg-info me-1">时间: ${st.schedule_time}</span>` : ''}
+                                    ${st.schedule_type === 'monthly' ? 
+                                        `<span class="badge bg-info me-1">日期: ${st.schedule_date}日</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge ${st.is_active ? 'bg-success' : 'bg-secondary'} status-badge mb-2">
+                                    ${st.is_active ? '已启用' : '已禁用'}
+                                </span>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary me-1" onclick="viewScheduledTask(${st.id})">
+                                        <i class="fas fa-eye"></i> 查看
+                                    </button>
+                                    <button class="btn btn-sm ${st.is_active ? 'btn-warning' : 'btn-success'} me-1" 
+                                            onclick="toggleScheduledTask(${st.id}, ${!st.is_active})">
+                                        <i class="fas fa-${st.is_active ? 'pause' : 'play'}"></i> 
+                                        ${st.is_active ? '禁用' : '启用'}
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteScheduledTask(${st.id})">
+                                        <i class="fas fa-trash"></i> 删除
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 获取调度类型文本
+        function getScheduleTypeText(type) {
+            const types = {
+                'interval': '间隔执行',
+                'daily': '每日执行',
+                'weekly': '每周执行',
+                'monthly': '每月执行'
+            };
+            return types[type] || type;
+        }
+        
+        // 显示创建定时任务模态框
+        function showCreateScheduledTaskModal() {
+            // 加载任务列表到下拉框
+            loadTasksForScheduling();
+            new bootstrap.Modal(document.getElementById('createScheduledTaskModal')).show();
+        }
+        
+        // 加载任务列表用于创建定时任务
+        async function loadTasksForScheduling() {
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const select = document.getElementById('scheduled_task_id');
+                    select.innerHTML = '<option value="">请选择要定时执行的任务</option>';
+                    
+                    data.tasks.forEach(task => {
+                        const option = document.createElement('option');
+                        option.value = task.id;
+                        option.textContent = `${task.query} (${task.max_results}个结果)`;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载任务列表失败:', error);
+            }
+        }
+        
+        // 切换调度字段显示
+        function toggleScheduleFields() {
+            const scheduleType = document.getElementById('schedule_type').value;
+            
+            // 隐藏所有字段
+            document.getElementById('interval_fields').style.display = 'none';
+            document.getElementById('time_fields').style.display = 'none';
+            document.getElementById('weekly_fields').style.display = 'none';
+            document.getElementById('monthly_fields').style.display = 'none';
+            
+            // 显示相应字段
+            if (scheduleType === 'interval') {
+                document.getElementById('interval_fields').style.display = 'block';
+            } else if (scheduleType === 'daily') {
+                document.getElementById('time_fields').style.display = 'block';
+            } else if (scheduleType === 'weekly') {
+                document.getElementById('time_fields').style.display = 'block';
+                document.getElementById('weekly_fields').style.display = 'block';
+            } else if (scheduleType === 'monthly') {
+                document.getElementById('time_fields').style.display = 'block';
+                document.getElementById('monthly_fields').style.display = 'block';
+            }
+        }
+        
+        // 创建定时任务
+        async function createScheduledTask() {
+            const form = document.getElementById('scheduledTaskForm');
+            const formData = new FormData(form);
+            const taskData = {};
+            
+            // 收集表单数据
+            for (let [key, value] of formData.entries()) {
+                if (value) {
+                    taskData[key] = value;
+                }
+            }
+            
+            // 处理每周执行日期
+            if (taskData.schedule_type === 'weekly') {
+                const selectedDays = [];
+                for (let i = 1; i <= 7; i++) {
+                    if (document.getElementById(`day_${i}`).checked) {
+                        selectedDays.push(i);
+                    }
+                }
+                if (selectedDays.length === 0) {
+                    alert('请至少选择一天');
+                    return;
+                }
+                taskData.schedule_days = selectedDays.join(',');
+            }
+            
+            // 验证必需字段
+            if (!taskData.task_id || !taskData.schedule_type) {
+                alert('请填写所有必需字段');
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch('/api/scheduled-tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('定时任务创建成功！');
+                    bootstrap.Modal.getInstance(document.getElementById('createScheduledTaskModal')).hide();
+                    form.reset();
+                    refreshScheduledTasks();
+                } else {
+                    alert('创建定时任务失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('创建定时任务失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 查看定时任务详情
+        async function viewScheduledTask(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const st = data.scheduled_task;
+                    const modalBody = document.getElementById('scheduledTaskModalBody');
+                    
+                    modalBody.innerHTML = `
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>定时任务信息</h6>
+                                <table class="table table-sm">
+                                    <tr><td>ID:</td><td>${st.id}</td></tr>
+                                    <tr><td>调度类型:</td><td>${getScheduleTypeText(st.schedule_type)}</td></tr>
+                                    <tr><td>状态:</td><td><span class="badge ${st.is_active ? 'bg-success' : 'bg-secondary'}">${st.is_active ? '已启用' : '已禁用'}</span></td></tr>
+                                    <tr><td>创建时间:</td><td>${formatDate(st.created_at)}</td></tr>
+                                    <tr><td>下次执行:</td><td>${formatDate(st.next_run)}</td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>关联任务</h6>
+                                <table class="table table-sm">
+                                    <tr><td>任务ID:</td><td>${st.task.id}</td></tr>
+                                    <tr><td>搜索关键词:</td><td>${st.task.query}</td></tr>
+                                    <tr><td>任务状态:</td><td><span class="badge ${getStatusBadgeClass(st.task.status)}">${getStatusText(st.task.status)}</span></td></tr>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        <h6>执行历史</h6>
+                        <div id="execution-history">
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">加载中...</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    new bootstrap.Modal(document.getElementById('scheduledTaskModal')).show();
+                    
+                    // 加载执行历史
+                    loadExecutionHistory(scheduledTaskId);
+                }
+            } catch (error) {
+                alert('获取定时任务详情失败: ' + error.message);
+            }
+        }
+        
+        // 加载执行历史
+        async function loadExecutionHistory(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/executions`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const historyContainer = document.getElementById('execution-history');
+                    
+                    if (data.executions.length === 0) {
+                        historyContainer.innerHTML = '<p class="text-muted">暂无执行记录</p>';
+                        return;
+                    }
+                    
+                    historyContainer.innerHTML = data.executions.map(execution => `
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-3">
+                                        <span class="badge ${execution.status === 'success' ? 'bg-success' : 'bg-danger'}">
+                                            ${execution.status === 'success' ? '成功' : '失败'}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-play me-1"></i>开始: ${formatDate(execution.started_at)}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-check me-1"></i>完成: ${formatDate(execution.completed_at)}
+                                        </small>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <small class="text-muted">
+                                            <i class="fas fa-video me-1"></i>视频数: ${execution.videos_count || 0}
+                                        </small>
+                                    </div>
+                                </div>
+                                ${execution.error_message ? `
+                                    <div class="mt-2">
+                                        <small class="text-danger">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>错误: ${execution.error_message}
+                                        </small>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('加载执行历史失败:', error);
+                document.getElementById('execution-history').innerHTML = '<p class="text-danger">加载执行历史失败</p>';
+            }
+        }
+        
+        // 切换定时任务状态
+        async function toggleScheduledTask(scheduledTaskId, isActive) {
+            try {
+                showLoading();
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/toggle`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ is_active: isActive })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    refreshScheduledTasks();
+                } else {
+                    alert('切换状态失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('切换状态失败: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // 删除定时任务
+        async function deleteScheduledTask(scheduledTaskId) {
+            if (!confirm('确定要删除这个定时任务吗？此操作不可恢复。')) return;
+            
+            try {
+                showLoading();
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('定时任务删除成功！');
+                    refreshScheduledTasks();
+                } else {
+                    alert('删除定时任务失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('删除定时任务失败: ' + error.message);
             } finally {
                 hideLoading();
             }

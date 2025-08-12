@@ -5,6 +5,7 @@ import google.oauth2.credentials
 
 from ..services.youtube_service import youtube_service
 from ..store import task_store
+from ..utils.auth_utils import global_credential_store
 
 
 tasks_bp = Blueprint('tasks', __name__)
@@ -33,11 +34,16 @@ def execute_task(task_id: str):
     if not task:
         return jsonify({"error": "任务不存在"}), 404
 
-    if 'credentials' not in session:
+    # 检查数据库中的认证状态
+    if not global_credential_store.is_authenticated(user_id='default'):
         return jsonify({"error": "需要先进行OAuth认证"}), 401
 
     try:
-        credentials = google.oauth2.credentials.Credentials(**session['credentials'])
+        # 从数据库获取认证凭证
+        credentials = global_credential_store.get_credentials(user_id='default')
+        if not credentials:
+            return jsonify({"error": "无法获取认证凭证"}), 500
+        
         if not youtube_service.authenticate(credentials):
             return jsonify({"error": "API认证失败"}), 500
 
@@ -69,7 +75,7 @@ def execute_task(task_id: str):
 
 @tasks_bp.get('/tasks/<task_id>')
 def get_task(task_id: str):
-    task = task_store.get_task(task_id)
+    task = task_store.get_task_with_results(task_id)
     if not task:
         return jsonify({"error": "任务不存在"}), 404
     return jsonify({"success": True, "task": task})

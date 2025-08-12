@@ -14,3 +14,10 @@ class AppConfig:
     YT_SCOPES = ['https://www.googleapis.com/auth/youtube.force-ssl']
     YT_API_SERVICE_NAME = 'youtube'
     YT_API_VERSION = 'v3'
+    
+    # 数据库配置
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    DATABASE_PATH = os.environ.get('DATABASE_PATH', os.path.join(BASE_DIR, 'video_search.db'))
+    
+    # 定时任务配置
+    SCHEDULER_ENABLED = os.environ.get('SCHEDULER_ENABLED', 'true').lower() == 'true'

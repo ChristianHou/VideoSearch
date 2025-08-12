@@ -1,235 +1,192 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
-网络诊断脚本 - 帮助诊断WinError 10060等网络问题
+网络诊断脚本
+用于诊断YouTube API连接问题
 """
 
 import os
 import sys
-import socket
 import requests
+import socket
 import subprocess
-import platform
-from datetime import datetime
+from urllib.parse import urlparse
 
-def print_header(title):
-    """打印标题"""
-    print("\n" + "="*60)
-    print(f" {title}")
-    print("="*60)
-
-def print_section(title):
-    """打印章节标题"""
-    print(f"\n--- {title} ---")
-
-def check_python_environment():
-    """检查Python环境"""
-    print_section("Python环境检查")
-    print(f"Python版本: {sys.version}")
-    print(f"Python路径: {sys.executable}")
-    print(f"工作目录: {os.getcwd()}")
+def test_basic_connectivity():
+    """测试基本网络连接"""
+    print("=== 基本网络连接测试 ===")
     
-    # 检查网络相关环境变量
-    proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'REQUESTS_CA_BUNDLE']
+    # 测试DNS解析
+    try:
+        ip = socket.gethostbyname('www.googleapis.com')
+        print(f"✓ DNS解析成功: www.googleapis.com -> {ip}")
+    except socket.gaierror as e:
+        print(f"✗ DNS解析失败: {e}")
+        return False
+    
+    # 测试端口连接
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        result = sock.connect_ex(('www.googleapis.com', 443))
+        sock.close()
+        if result == 0:
+            print("✓ 端口443连接成功")
+        else:
+            print(f"✗ 端口443连接失败，错误码: {result}")
+            return False
+    except Exception as e:
+        print(f"✗ 端口连接测试失败: {e}")
+        return False
+    
+    return True
+
+def test_http_requests():
+    """测试HTTP请求"""
+    print("\n=== HTTP请求测试 ===")
+    
+    # 测试Google APIs Discovery
+    try:
+        response = requests.get('https://www.googleapis.com/discovery/v1/apis', timeout=10)
+        if response.status_code == 200:
+            print("✓ Google APIs Discovery 连接成功")
+        else:
+            print(f"✗ Google APIs Discovery 状态码: {response.status_code}")
+            return False
+    except Exception as e:
+        print(f"✗ Google APIs Discovery 连接失败: {e}")
+        return False
+    
+    # 测试YouTube Data API
+    try:
+        response = requests.get('https://www.googleapis.com/youtube/v3', timeout=10)
+        if response.status_code in [200, 404]:  # 404也是正常的，表示端点存在
+            print("✓ YouTube Data API 端点可访问")
+        else:
+            print(f"✗ YouTube Data API 状态码: {response.status_code}")
+    except Exception as e:
+        print(f"✗ YouTube Data API 连接失败: {e}")
+    
+    return True
+
+def test_proxy_settings():
+    """测试代理设置"""
+    print("\n=== 代理设置检查 ===")
+    
+    # 检查环境变量
+    proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'http_proxy', 'https_proxy']
     for var in proxy_vars:
         value = os.environ.get(var)
         if value:
-            print(f"{var}: {value}")
+            print(f"⚠ 发现代理设置: {var} = {value}")
         else:
-            print(f"{var}: 未设置")
-
-def check_system_info():
-    """检查系统信息"""
-    print_section("系统信息")
-    print(f"操作系统: {platform.system()} {platform.release()}")
-    print(f"系统版本: {platform.version()}")
-    print(f"机器类型: {platform.machine()}")
-    print(f"处理器: {platform.processor()}")
-
-def check_network_interfaces():
-    """检查网络接口"""
-    print_section("网络接口信息")
+            print(f"✓ 未设置代理: {var}")
+    
+    # 检查Windows代理设置
     try:
-        if platform.system() == "Windows":
-            result = subprocess.run(['ipconfig', '/all'], capture_output=True, text=True, encoding='gbk')
-            if result.returncode == 0:
-                print("网络配置信息:")
-                print(result.stdout)
-            else:
-                print("无法获取网络配置信息")
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
+                            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings")
+        proxy_enable, _ = winreg.QueryValueEx(key, "ProxyEnable")
+        if proxy_enable:
+            proxy_server, _ = winreg.QueryValueEx(key, "ProxyServer")
+            print(f"⚠ Windows代理已启用: {proxy_server}")
         else:
-            result = subprocess.run(['ifconfig'], capture_output=True, text=True)
-            if result.returncode == 0:
-                print("网络接口信息:")
-                print(result.stdout)
-            else:
-                print("无法获取网络接口信息")
+            print("✓ Windows代理未启用")
+        winreg.CloseKey(key)
     except Exception as e:
-        print(f"获取网络接口信息失败: {e}")
-
-def test_dns_resolution():
-    """测试DNS解析"""
-    print_section("DNS解析测试")
-    test_hosts = [
-        'www.google.com',
-        'www.youtube.com',
-        'www.googleapis.com',
-        'accounts.google.com'
-    ]
+        print(f"无法检查Windows代理设置: {e}")
     
-    for host in test_hosts:
-        try:
-            ip = socket.gethostbyname(host)
-            print(f"✓ {host} -> {ip}")
-        except socket.gaierror as e:
-            print(f"✗ {host} -> DNS解析失败: {e}")
+    return True  # 总是返回True，因为这只是检查，不是测试
 
-def test_network_connectivity():
-    """测试网络连接"""
-    print_section("网络连接测试")
-    test_urls = [
-        'https://www.google.com',
-        'https://www.youtube.com',
-        'https://youtube.googleapis.com',
-        'https://accounts.google.com'
-    ]
+def test_firewall():
+    """测试防火墙设置"""
+    print("\n=== 防火墙测试 ===")
     
-    for url in test_urls:
-        try:
-            response = requests.get(url, timeout=10)
-            if response.status_code == 200:
-                print(f"✓ {url} -> 状态码: {response.status_code}")
-            else:
-                print(f"⚠ {url} -> 状态码: {response.status_code}")
-        except requests.exceptions.Timeout:
-            print(f"✗ {url} -> 连接超时")
-        except requests.exceptions.ConnectionError as e:
-            print(f"✗ {url} -> 连接失败: {e}")
-        except Exception as e:
-            print(f"✗ {url} -> 错误: {e}")
-
-def test_ping():
-    """测试ping连接"""
-    print_section("Ping测试")
-    test_hosts = ['www.google.com', '8.8.8.8']
-    
-    for host in test_hosts:
-        try:
-            if platform.system() == "Windows":
-                result = subprocess.run(['ping', '-n', '3', host], capture_output=True, text=True, encoding='gbk')
-            else:
-                result = subprocess.run(['ping', '-c', '3', host], capture_output=True, text=True)
-            
-            if result.returncode == 0:
-                print(f"✓ {host} -> Ping成功")
-                # 显示ping结果摘要
-                lines = result.stdout.split('\n')
-                for line in lines:
-                    if '时间=' in line or 'time=' in line:
-                        print(f"  {line.strip()}")
-            else:
-                print(f"✗ {host} -> Ping失败")
-        except Exception as e:
-            print(f"✗ {host} -> Ping测试异常: {e}")
-
-def test_traceroute():
-    """测试路由跟踪"""
-    print_section("路由跟踪测试")
+    # 测试出站连接
     try:
-        if platform.system() == "Windows":
-            result = subprocess.run(['tracert', '-h', '10', 'www.google.com'], capture_output=True, text=True, encoding='gbk')
-        else:
-            result = subprocess.run(['traceroute', '-m', '10', 'www.google.com'], capture_output=True, text=True)
+        # 尝试连接到Google的多个端口
+        ports = [80, 443, 8080]
+        for port in ports:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                result = sock.connect_ex(('8.8.8.8', port))
+                sock.close()
+                if result == 0:
+                    print(f"✓ 出站连接测试成功: 8.8.8.8:{port}")
+                else:
+                    print(f"✗ 出站连接测试失败: 8.8.8.8:{port}, 错误码: {result}")
+            except Exception as e:
+                print(f"✗ 出站连接测试异常: {e}")
+    except Exception as e:
+        print(f"防火墙测试失败: {e}")
+
+def test_python_network():
+    """测试Python网络库"""
+    print("\n=== Python网络库测试 ===")
+    
+    try:
+        import httplib2
+        print("✓ httplib2 库可用")
         
-        if result.returncode == 0:
-            print("路由跟踪结果:")
-            print(result.stdout)
-        else:
-            print("路由跟踪失败")
-    except Exception as e:
-        print(f"路由跟踪测试异常: {e}")
-
-def check_firewall():
-    """检查防火墙状态"""
-    print_section("防火墙检查")
-    try:
-        if platform.system() == "Windows":
-            result = subprocess.run(['netsh', 'advfirewall', 'show', 'allprofiles'], capture_output=True, text=True, encoding='gbk')
-            if result.returncode == 0:
-                print("Windows防火墙状态:")
-                print(result.stdout)
-            else:
-                print("无法获取防火墙状态")
-        else:
-            print("非Windows系统，跳过防火墙检查")
-    except Exception as e:
-        print(f"防火墙检查失败: {e}")
-
-def check_proxy_settings():
-    """检查代理设置"""
-    print_section("代理设置检查")
-    
-    # 检查系统代理
-    proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY']
-    for var in proxy_vars:
-        value = os.environ.get(var)
-        if value:
-            print(f"环境变量 {var}: {value}")
-        else:
-            print(f"环境变量 {var}: 未设置")
-    
-    # 检查Windows注册表代理设置
-    if platform.system() == "Windows":
+        # 测试httplib2连接
+        http = httplib2.Http(timeout=10)
         try:
-            import winreg
-            key_path = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
-            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
-                try:
-                    proxy_enable = winreg.QueryValueEx(key, "ProxyEnable")[0]
-                    if proxy_enable:
-                        proxy_server = winreg.QueryValueEx(key, "ProxyServer")[0]
-                        print(f"Windows代理已启用: {proxy_server}")
-                    else:
-                        print("Windows代理已禁用")
-                except FileNotFoundError:
-                    print("Windows代理设置未找到")
+            response, content = http.request('https://www.googleapis.com/discovery/v1/apis')
+            if response.status == 200:
+                print("✓ httplib2 连接测试成功")
+            else:
+                print(f"✗ httplib2 连接测试失败，状态码: {response.status}")
         except Exception as e:
-            print(f"检查Windows代理设置失败: {e}")
-
-def generate_report():
-    """生成诊断报告"""
-    print_header("网络诊断报告")
-    print(f"诊断时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    check_system_info()
-    check_python_environment()
-    check_network_interfaces()
-    test_dns_resolution()
-    test_network_connectivity()
-    test_ping()
-    test_traceroute()
-    check_firewall()
-    check_proxy_settings()
-    
-    print_header("诊断完成")
-    print("如果发现问题，请参考 NETWORK_TROUBLESHOOTING.md 文件")
-    print("常见解决方案:")
-    print("1. 检查防火墙设置")
-    print("2. 检查代理配置")
-    print("3. 尝试使用VPN")
-    print("4. 更换DNS服务器")
-    print("5. 重启网络服务")
+            print(f"✗ httplib2 连接测试异常: {e}")
+            
+    except ImportError:
+        print("✗ httplib2 库不可用")
+    except Exception as e:
+        print(f"✗ httplib2 测试失败: {e}")
 
 def main():
     """主函数"""
-    try:
-        generate_report()
-    except KeyboardInterrupt:
-        print("\n\n诊断被用户中断")
-    except Exception as e:
-        print(f"\n诊断过程中发生错误: {e}")
-        import traceback
-        traceback.print_exc()
+    print("YouTube API 网络诊断工具")
+    print("=" * 50)
+    
+    # 运行所有测试
+    tests = [
+        test_basic_connectivity,
+        test_http_requests,
+        test_proxy_settings,
+        test_firewall,
+        test_python_network
+    ]
+    
+    results = []
+    for test in tests:
+        try:
+            result = test()
+            results.append(result)
+        except Exception as e:
+            print(f"测试 {test.__name__} 异常: {e}")
+            results.append(False)
+    
+    # 总结
+    print("\n" + "=" * 50)
+    print("诊断结果总结:")
+    passed = sum(results)
+    total = len(results)
+    print(f"通过测试: {passed}/{total}")
+    
+    if passed == total:
+        print("🎉 所有网络测试通过！")
+        print("如果仍然遇到问题，可能是认证或API配额问题。")
+    else:
+        print("⚠️ 部分测试失败，请根据上述信息检查网络配置。")
+        print("\n建议解决方案:")
+        print("1. 检查系统代理设置")
+        print("2. 检查防火墙配置")
+        print("3. 尝试使用VPN或更换网络环境")
+        print("4. 联系网络管理员")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
