@@ -21,3 +21,9 @@ class AppConfig:
     
     # 定时任务配置
     SCHEDULER_ENABLED = os.environ.get('SCHEDULER_ENABLED', 'true').lower() == 'true'
+    
+    # 飞书配置
+    FEISHU_APP_ID = os.environ.get('FEISHU_APP_ID', 'cli_a804a5c2377a900d')
+    FEISHU_APP_SECRET = os.environ.get('FEISHU_APP_SECRET', '4sRE7dMBTO6MY2QMd3QyCc0Gocnbla6S')
+    FEISHU_CHAT_ID = os.environ.get('FEISHU_CHAT_ID', 'oc_80514dadcb6c5229ed67855cc779ea8b')
+    FEISHU_ENABLED = os.environ.get('FEISHU_ENABLED', 'true').lower() == 'true'

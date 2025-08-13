@@ -9,3 +9,4 @@ requests==2.31.0
 urllib3==2.0.7
 SQLAlchemy>=2.0.25
 schedule==1.2.0
+lark-oapi>=1.4.21

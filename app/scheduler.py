@@ -78,10 +78,47 @@ class TaskScheduler:
         except Exception as e:
             print(f"添加定时任务到调度器失败: {e}")
     
+    def get_scheduled_jobs(self):
+        """获取当前调度器中的所有任务"""
+        jobs_info = []
+        for job in schedule.jobs:
+            job_info = {
+                'tags': getattr(job, 'tags', []),
+                'next_run': getattr(job, 'next_run', None),
+                'interval': getattr(job, 'interval', None),
+                'unit': getattr(job, 'unit', None)
+            }
+            jobs_info.append(job_info)
+        return jobs_info
+    
+    def print_scheduled_jobs(self):
+        """打印当前调度器中的所有任务信息"""
+        jobs = self.get_scheduled_jobs()
+        print(f"当前调度器中有 {len(jobs)} 个任务:")
+        for i, job in enumerate(jobs):
+            print(f"  任务 {i+1}: 标签={job['tags']}, 下次运行={job['next_run']}, 间隔={job['interval']} {job['unit']}")
+    
     def remove_scheduled_task(self, scheduled_task_id: int):
         """从调度器移除定时任务"""
         try:
+            print(f"移除定时任务前，调度器状态:")
+            self.print_scheduled_jobs()
+            
+            # 清除所有带有该标签的任务
             schedule.clear(scheduled_task_id)
+            
+            # 额外检查：清除所有可能相关的任务
+            # 由于schedule库的限制，我们需要手动检查并清除
+            jobs_to_remove = []
+            for job in schedule.jobs:
+                if hasattr(job, 'tags') and scheduled_task_id in job.tags:
+                    jobs_to_remove.append(job)
+            
+            for job in jobs_to_remove:
+                schedule.jobs.remove(job)
+            
+            print(f"移除定时任务后，调度器状态:")
+            self.print_scheduled_jobs()
             print(f"定时任务已从调度器移除: {scheduled_task_id}")
         except Exception as e:
             print(f"从调度器移除定时任务失败: {e}")
@@ -89,9 +126,21 @@ class TaskScheduler:
     def _schedule_interval_task(self, scheduled_task: ScheduledTask):
         """调度间隔任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task)
-            # 重新调度下一次执行
-            schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
+            # 在执行前检查任务状态
+            db = db_manager.get_session()
+            try:
+                task_check = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
+                if task_check and task_check.is_active:
+                    self._execute_scheduled_task(scheduled_task)
+                    # 只有在任务仍然启用时才重新调度
+                    if task_check.is_active:
+                        schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
+                else:
+                    print(f"定时任务 {scheduled_task.id} 已被禁用，停止重新调度")
+            except Exception as e:
+                print(f"检查定时任务状态时出错: {e}")
+            finally:
+                db.close()
         
         # 立即执行一次
         schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
@@ -153,6 +202,17 @@ class TaskScheduler:
             scheduled_task_refresh = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
             if not scheduled_task_refresh:
                 raise Exception("定时任务不存在")
+            
+            # 检查任务是否仍然处于启用状态
+            if not scheduled_task_refresh.is_active:
+                print(f"定时任务 {scheduled_task.id} 已被禁用，跳过执行")
+                execution_result.status = 'skipped'
+                execution_result.completed_at = get_east8_time()
+                execution_result.error_message = "任务已被禁用"
+                execution_result.result_data = None
+                execution_result.videos_count = 0
+                db.commit()
+                return
             
             # 获取关联的搜索任务信息
             search_task = db.query(Task).filter(Task.id == scheduled_task_refresh.task_id).first()
@@ -281,6 +341,39 @@ class TaskScheduler:
                     
                     db.commit()
                     print(f"定时任务 {scheduled_task.id} 执行成功，找到 {execution_result.videos_count} 个视频")
+                    
+                    # 发送飞书消息
+                    try:
+                        from .services.feishu_service import get_feishu_service
+                        feishu_service = get_feishu_service()
+                        if feishu_service:
+                            # 获取前25个视频用于发送到飞书
+                            video_executions = db.query(VideoExecutionResult).filter(
+                                VideoExecutionResult.scheduled_execution_result_id == execution_result.id
+                            ).order_by(VideoExecutionResult.rank).limit(25).all()
+                            
+                            videos = [ve.video for ve in video_executions if ve.video]
+                            if videos:
+                                execution_time = execution_result.completed_at.strftime("%Y-%m-%d %H:%M:%S")
+                                task_name = f"定时任务 {scheduled_task.id} - {search_task.query}"
+                                
+                                success = feishu_service.send_task_execution_result(
+                                    task_name=task_name,
+                                    videos=videos,
+                                    execution_time=execution_time,
+                                    total_count=execution_result.videos_count
+                                )
+                                
+                                if success:
+                                    print(f"飞书消息发送成功，任务: {task_name}")
+                                else:
+                                    print(f"飞书消息发送失败，任务: {task_name}")
+                            else:
+                                print("没有找到视频信息，跳过飞书消息发送")
+                        else:
+                            print("飞书服务未初始化，跳过消息发送")
+                    except Exception as feishu_error:
+                        print(f"发送飞书消息时出错: {feishu_error}")
                     
                 else:
                     # 搜索失败

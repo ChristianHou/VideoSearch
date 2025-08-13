@@ -22,6 +22,18 @@ def create_app() -> Flask:
     with app.app_context():
         init_db()
 
+    # 初始化飞书服务
+    if AppConfig.FEISHU_ENABLED:
+        try:
+            from .services.feishu_service import init_feishu_service
+            init_feishu_service(
+                app_id=AppConfig.FEISHU_APP_ID,
+                app_secret=AppConfig.FEISHU_APP_SECRET,
+                chat_id=AppConfig.FEISHU_CHAT_ID
+            )
+        except Exception as e:
+            print(f"飞书服务初始化失败: {e}")
+
     # 注册蓝图
     app.register_blueprint(auth_bp)
     app.register_blueprint(tasks_bp, url_prefix='/api')
