@@ -10,6 +10,8 @@ def normalize_rfc3339_date(date_str: str, end_of_day: bool = False) -> str:
 
     接受格式:
     - YYYY-MM-DD
+    - YYYY-MM-DDTHH:MM
+    - YYYY-MM-DDTHH:MM:SS
     - YYYY-MM-DDTHH:MM:SSZ
     - 含偏移的ISO字符串
     """
@@ -24,6 +26,16 @@ def normalize_rfc3339_date(date_str: str, end_of_day: bool = False) -> str:
     m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", date_str)
     if m:
         return f"{date_str}T23:59:59Z" if end_of_day else f"{date_str}T00:00:00Z"
+
+    # 包含时间的格式: YYYY-MM-DDTHH:MM 或 YYYY-MM-DDTHH:MM:SS
+    if 'T' in date_str:
+        try:
+            dt = datetime.datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            return dt.astimezone(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+        except Exception:
+            return date_str
 
     # 其他情况尽量解析
     try:

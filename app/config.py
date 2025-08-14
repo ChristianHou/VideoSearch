@@ -27,3 +27,8 @@ class AppConfig:
     FEISHU_APP_SECRET = os.environ.get('FEISHU_APP_SECRET', '4sRE7dMBTO6MY2QMd3QyCc0Gocnbla6S')
     FEISHU_CHAT_ID = os.environ.get('FEISHU_CHAT_ID', 'oc_80514dadcb6c5229ed67855cc779ea8b')
     FEISHU_ENABLED = os.environ.get('FEISHU_ENABLED', 'true').lower() == 'true'
+    
+    # 火山引擎翻译配置
+    VOLC_ACCESS_KEY = os.environ.get('VOLC_ACCESS_KEY', 'AKLTNDgxODIxNGU0MmRkNGQ0ZThkZGNjODliZmViZGNjYjQ')
+    VOLC_SECRET_KEY = os.environ.get('VOLC_SECRET_KEY', 'T0RJd056Qm1abU5qTm1ObU5HTmxPR0prWXpRNE1tUmhNelF5TkRKaVltTQ==')
+    VOLC_ENABLED = os.environ.get('VOLC_ENABLED', 'true').lower() == 'true'

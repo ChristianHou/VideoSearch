@@ -291,7 +291,10 @@ def get_execution_videos(execution_id: int):
                         'viewCount': str(video_info.view_count) if video_info.view_count else '0',
                         'likeCount': str(video_info.like_count) if video_info.like_count else '0',
                         'commentCount': str(video_info.comment_count) if video_info.comment_count else '0'
-                    }
+                    },
+                    # 添加翻译字段
+                    'translated_title': video_info.translated_title,
+                    'translated_description': video_info.translated_description
                 }
                 videos.append(video_data)
         

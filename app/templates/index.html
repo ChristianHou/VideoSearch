@@ -50,6 +50,17 @@
                     YouTube搜索API管理平台
                 </a>
                 <div class="navbar-nav ms-auto">
+                    <!-- 语言切换按钮 -->
+                    <div class="nav-item me-3">
+                        <div class="btn-group" role="group" aria-label="语言切换">
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="switchLanguage('original')" id="lang-original">
+                                <i class="fas fa-language me-1"></i>原文
+                            </button>
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="switchLanguage('bilingual')" id="lang-bilingual">
+                                <i class="fas fa-language me-1"></i>双语
+                            </button>
+                        </div>
+                    </div>
                     <div id="auth-section">
                         <a class="btn btn-outline-light me-2" href="/authorize" id="login-btn">
                             <i class="fas fa-sign-in-alt me-1"></i>登录
@@ -87,12 +98,12 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="published_after" class="form-label">发布日期 - 开始</label>
-                            <input type="date" class="form-control" id="published_after" name="published_after">
+                            <label for="published_after" class="form-label">发布时间 - 开始</label>
+                            <input type="datetime-local" class="form-control" id="published_after" name="published_after">
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="published_before" class="form-label">发布日期 - 结束</label>
-                            <input type="date" class="form-control" id="published_before" name="published_before">
+                            <label for="published_before" class="form-label">发布时间 - 结束</label>
+                            <input type="datetime-local" class="form-control" id="published_before" name="published_before">
                         </div>
                     </div>
                     
@@ -335,8 +346,19 @@
                     <h5 class="modal-title">执行结果视频列表</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="executionVideosModalBody">
-                    <!-- 视频列表内容 -->
+                <div class="modal-body">
+                    <!-- 语言切换按钮 -->
+                    <div class="mb-3">
+                        <div class="btn-group" role="group" aria-label="执行结果语言切换">
+                            <button type="button" class="btn btn-outline-primary active" onclick="switchExecutionLanguage('original')" id="exec-lang-original">
+                                <i class="fas fa-language me-1"></i>原文
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="switchExecutionLanguage('translated')" id="exec-lang-translated">
+                                <i class="fas fa-language me-1"></i>译文
+                            </button>
+                        </div>
+                    </div>
+                    <div id="executionVideosList"></div>
                 </div>
             </div>
         </div>
@@ -444,7 +466,12 @@
             // 收集表单数据
             for (let [key, value] of formData.entries()) {
                 if (value) {
-                    taskData[key] = value;
+                    // 处理datetime-local格式的日期
+                    if ((key === 'published_after' || key === 'published_before') && value) {
+                        taskData[key] = new Date(value).toISOString();
+                    } else {
+                        taskData[key] = value;
+                    }
                 }
             }
             
@@ -710,6 +737,10 @@
                     }
                 }
                 
+                // 获取双语标题和描述
+                const title = getBilingualTitle(item);
+                const description = getBilingualDescription(item);
+                
                 return `
                     <div class="video-item">
                         <div class="row">
@@ -722,10 +753,10 @@
                                 <h6 class="mb-1">
                                     <a href="https://www.youtube.com/watch?v=${item.id.videoId}" 
                                        target="_blank" class="text-decoration-none">
-                                        ${item.snippet.title || '无标题'}
+                                        ${title}
                                     </a>
                                 </h6>
-                                <p class="text-muted mb-1">${item.snippet.description || '暂无描述'}</p>
+                                <p class="text-muted mb-1">${description}</p>
                                 <small class="text-muted">
                                     <i class="fas fa-user me-1"></i>${item.snippet.channelTitle || '未知频道'}
                                     <span class="mx-2">|</span>
@@ -1212,7 +1243,7 @@
                                             }
                                         </small>
                                         ${execution.status === 'success' && execution.videos_count > 0 ? 
-                                            `<br><button class="btn btn-sm btn-outline-primary mt-1" onclick="showExecutionVideos(${execution.id}, '${execution.execution_id}')">
+                                            `<br><button class="btn btn-sm btn-outline-primary mt-1" onclick="showExecutionVideos(${execution.id}, '${execution.id}')">
                                                 <i class="fas fa-video"></i> 查看视频
                                             </button>` : ''
                                         }
@@ -1295,16 +1326,30 @@
         // 显示执行结果视频列表
         async function showExecutionVideos(executionId, executionUuid) {
             try {
+                console.log('开始获取执行结果视频列表:', executionId, executionUuid);
+                
                 // 获取执行结果详情
                 const response = await fetch(`/api/scheduled-tasks/executions/${executionId}/videos`);
                 const data = await response.json();
                 
+                console.log('API响应数据:', data);
+                
                 if (data.success) {
                     const videos = data.videos;
-                    const modalBody = document.getElementById('executionVideosModalBody');
+                    console.log('获取到的视频数据:', videos);
+                    
+                    const videosList = document.getElementById('executionVideosList');
+                    console.log('找到的DOM元素:', videosList);
+                    
+                    // 检查DOM元素是否存在
+                    if (!videosList) {
+                        console.error('找不到executionVideosList元素');
+                        alert('页面元素加载失败，请刷新页面重试');
+                        return;
+                    }
                     
                     if (videos && videos.length > 0) {
-                        modalBody.innerHTML = `
+                        const htmlContent = `
                             <div class="mb-3">
                                 <h6>执行ID: ${executionUuid}</h6>
                                 <p class="text-muted">共找到 ${videos.length} 个视频</p>
@@ -1313,21 +1358,36 @@
                                 ${renderExecutionVideos(videos)}
                             </div>
                         `;
+                        console.log('设置HTML内容:', htmlContent);
+                        videosList.innerHTML = htmlContent;
                     } else {
-                        modalBody.innerHTML = '<p class="text-muted text-center">暂无视频数据</p>';
+                        videosList.innerHTML = '<p class="text-muted text-center">暂无视频数据</p>';
                     }
                     
-                    new bootstrap.Modal(document.getElementById('executionVideosModal')).show();
+                    const modal = document.getElementById('executionVideosModal');
+                    console.log('找到的模态框元素:', modal);
+                    
+                    if (modal) {
+                        new bootstrap.Modal(modal).show();
+                    } else {
+                        console.error('找不到executionVideosModal元素');
+                        alert('模态框加载失败，请刷新页面重试');
+                    }
                 } else {
+                    console.error('API返回失败:', data.error);
                     alert('获取视频列表失败: ' + data.error);
                 }
             } catch (error) {
+                console.error('获取视频列表失败:', error);
                 alert('获取视频列表失败: ' + error.message);
             }
         }
         
         // 渲染执行结果视频列表
         function renderExecutionVideos(videos) {
+            // 保存当前视频数据到全局变量
+            window.currentExecutionVideos = videos;
+            
             if (!videos || videos.length === 0) {
                 return '<p class="text-muted">暂无视频数据</p>';
             }
@@ -1365,7 +1425,7 @@
                     videoId = video.id;
                 }
                 
-                // 提取标题
+                // 根据当前语言设置选择标题
                 let title = `视频 ${index + 1}`;
                 if (video.snippet && video.snippet.title) {
                     title = video.snippet.title;
@@ -1373,12 +1433,40 @@
                     title = video.title;
                 }
                 
-                // 提取描述
+                // 根据当前语言设置选择描述
                 let description = '暂无描述';
                 if (video.snippet && video.snippet.description) {
                     description = video.snippet.description;
                 } else if (video.description) {
                     description = video.description;
+                }
+                
+                // 在双语模式下，尝试获取翻译后的标题和描述
+                if (currentLanguage === 'bilingual') {
+                    // 检查是否有翻译数据（可能在不同的字段中）
+                    let translatedTitle = null;
+                    let translatedDescription = null;
+                    
+                    // 尝试从多个可能的字段获取翻译数据
+                    if (video.translated_title) {
+                        translatedTitle = video.translated_title;
+                    } else if (video.snippet && video.snippet.translated_title) {
+                        translatedTitle = video.snippet.translated_title;
+                    }
+                    
+                    if (video.translated_description) {
+                        translatedDescription = video.translated_description;
+                    } else if (video.snippet && video.snippet.translated_description) {
+                        translatedDescription = video.snippet.translated_description;
+                    }
+                    
+                    // 如果有翻译数据，创建双语格式
+                    if (translatedTitle) {
+                        title = `${translatedTitle}（${title}）`;
+                    }
+                    if (translatedDescription) {
+                        description = `${translatedDescription}（${description}）`;
+                    }
                 }
                 
                 // 提取频道名称
@@ -1424,6 +1512,133 @@
                 `;
             }).join('');
         }
+        
+        // 语言切换功能
+        let currentLanguage = 'original'; // 默认显示原文
+        
+        function switchLanguage(language) {
+            currentLanguage = language;
+            
+            // 更新按钮状态
+            document.getElementById('lang-original').classList.remove('active');
+            document.getElementById('lang-bilingual').classList.remove('active');
+            document.getElementById(`lang-${language}`).classList.add('active');
+            
+            // 如果当前有执行结果视频列表显示，则重新渲染它
+            if (window.currentExecutionVideos) {
+                const videosList = document.getElementById('executionVideosList');
+                if (videosList) {
+                    videosList.innerHTML = `
+                        <div class="results-container">
+                            ${renderExecutionVideos(window.currentExecutionVideos)}
+                        </div>
+                    `;
+                }
+            }
+            
+            // 保存语言偏好到本地存储
+            localStorage.setItem('preferredLanguage', language);
+        }
+        
+        function getBilingualText(originalText, translatedText) {
+            if (currentLanguage === 'bilingual' && translatedText) {
+                return `${translatedText}（${originalText}）`;
+            }
+            return originalText;
+        }
+        
+        function getBilingualTitle(video) {
+            let title = '';
+            if (video.snippet && video.snippet.title) {
+                title = video.snippet.title;
+            } else if (video.title) {
+                title = video.title;
+            }
+            
+            let translatedTitle = '';
+            if (video.translated_title) {
+                translatedTitle = video.translated_title;
+            }
+            
+            return getBilingualText(title, translatedTitle);
+        }
+        
+        function getBilingualDescription(video) {
+            let description = '';
+            if (video.snippet && video.snippet.description) {
+                description = video.snippet.description;
+            } else if (video.description) {
+                description = video.description;
+            }
+            
+            let translatedDescription = '';
+            if (video.translated_description) {
+                translatedDescription = video.translated_description;
+            }
+            
+            return getBilingualText(description, translatedDescription);
+        }
+        
+        // 页面加载时初始化语言设置
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedLanguage = localStorage.getItem('preferredLanguage');
+            if (savedLanguage) {
+                switchLanguage(savedLanguage);
+            }
+        });
+
+            // 执行结果语言切换功能
+            function switchExecutionLanguage(language) {
+                // 同步主语言设置
+                currentLanguage = language === 'translated' ? 'bilingual' : 'original';
+                
+                // 更新主语言按钮状态
+                document.getElementById('lang-original').classList.remove('active');
+                document.getElementById('lang-bilingual').classList.remove('active');
+                document.getElementById(`lang-${currentLanguage}`).classList.add('active');
+                
+                // 更新执行结果语言按钮状态
+                const originalBtn = document.getElementById('exec-lang-original');
+                const translatedBtn = document.getElementById('exec-lang-translated');
+                
+                if (originalBtn && translatedBtn) {
+                    originalBtn.classList.remove('active');
+                    translatedBtn.classList.remove('active');
+                    const targetBtn = document.getElementById(`exec-lang-${language}`);
+                    if (targetBtn) {
+                        targetBtn.classList.add('active');
+                    }
+                }
+                
+                // 重新渲染执行结果视频列表
+                if (window.currentExecutionVideos) {
+                    const videosList = document.getElementById('executionVideosList');
+                    if (videosList) {
+                        videosList.innerHTML = `
+                            <div class="results-container">
+                                ${renderExecutionVideos(window.currentExecutionVideos)}
+                            </div>
+                        `;
+                    }
+                }
+                
+                // 保存语言偏好到本地存储
+                localStorage.setItem('preferredLanguage', currentLanguage);
+            }
+            
+            function getExecutionVideoTitle(video) {
+                if (executionLanguage === 'translated' && video.translated_title) {
+                    return video.translated_title;
+                }
+                return video.title || '无标题';
+            }
+            
+            function getExecutionVideoDescription(video) {
+                if (executionLanguage === 'translated' && video.translated_description) {
+                    return video.translated_description;
+                }
+                return video.description || '无描述';
+            }
     </script>
 </body>
 </html>

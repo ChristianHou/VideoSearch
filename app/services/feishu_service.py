@@ -97,9 +97,6 @@ class FeishuService:
         # 构建视频列表
         video_list = []
 
-        # 构建视频URL
-        video_url = f"https://www.youtube.com/watch?v={video.video_id}"
-
         for video in videos:
             # 构建list_content：视频简介 + 作者 + 时长 + 发布时间
             list_content_parts = []
@@ -123,6 +120,7 @@ class FeishuService:
                 list_content_parts.append(f"**发布时间**: {published_str}")
             
             # 添加视频URL
+            video_url = f"https://www.youtube.com/watch?v={video.video_id}"
             list_content_parts.append(f"**视频URL**: [点击查看视频]({video_url})")
 
             list_content = "\n".join(list_content_parts)
@@ -138,13 +136,28 @@ class FeishuService:
             #     elif 'high' in video.thumbnails:
             #         img_key = video.thumbnails['high']['url']
             
+            # 获取双语标题
+            title = video.title or "无标题"
+            bilingual_title = title
+            
+            # 尝试获取翻译服务来创建双语标题
+            try:
+                from .translate_service import get_translate_service
+                translate_service = get_translate_service()
+                if translate_service:
+                    # 翻译标题
+                    translated_title = translate_service.translate_text(title)
+                    if translated_title:
+                        bilingual_title = translate_service.create_bilingual_text(title, translated_title)
+            except Exception as e:
+                print(f"获取双语标题时出错: {e}")
             
             video_item = {
                 "list_content": list_content,
                 # "img": {
                 #     "img_key": img_key
                 # },
-                "title": f"### {video.title}" or "无标题",
+                "title": f"### {bilingual_title}",
             }
             video_list.append(video_item)
         

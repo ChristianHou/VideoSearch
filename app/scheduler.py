@@ -131,7 +131,7 @@ class TaskScheduler:
             try:
                 task_check = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
                 if task_check and task_check.is_active:
-                    self._execute_scheduled_task(scheduled_task)
+                    self._execute_scheduled_task(scheduled_task.id)
                     # 只有在任务仍然启用时才重新调度
                     if task_check.is_active:
                         schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
@@ -148,14 +148,14 @@ class TaskScheduler:
     def _schedule_daily_task(self, scheduled_task: ScheduledTask):
         """调度每日任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task)
+            self._execute_scheduled_task(scheduled_task.id)
         
         schedule.every().day.at(scheduled_task.schedule_time).do(job).tag(scheduled_task.id)
     
     def _schedule_weekly_task(self, scheduled_task: ScheduledTask):
         """调度每周任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task)
+            self._execute_scheduled_task(scheduled_task.id)
         
         days = [int(d) for d in scheduled_task.schedule_days.split(',')]
         for day in days:
@@ -177,51 +177,37 @@ class TaskScheduler:
     def _schedule_monthly_task(self, scheduled_task: ScheduledTask):
         """调度每月任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task)
+            self._execute_scheduled_task(scheduled_task.id)
         
         # 每月指定日期执行
         schedule.every().month.at(scheduled_task.schedule_time).do(job).tag(scheduled_task.id)
     
-    def _execute_scheduled_task(self, scheduled_task: ScheduledTask):
+    def _execute_scheduled_task(self, scheduled_task_id):
         """执行定时任务"""
-        print(f"执行定时任务: {scheduled_task.id}")
-        
-        # 创建执行结果记录
-        execution_result = ScheduledExecutionResult(
-            scheduled_task_id=scheduled_task.id,
-            started_at=get_east8_time(),
-            status='running'
-        )
-        
-        db = db_manager.get_session()
         try:
-            db.add(execution_result)
-            db.commit()
+            db = db_manager.get_session()
             
-            # 重新查询任务信息，避免懒加载问题
-            scheduled_task_refresh = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
-            if not scheduled_task_refresh:
-                raise Exception("定时任务不存在")
-            
-            # 检查任务是否仍然处于启用状态
-            if not scheduled_task_refresh.is_active:
-                print(f"定时任务 {scheduled_task.id} 已被禁用，跳过执行")
-                execution_result.status = 'skipped'
-                execution_result.completed_at = get_east8_time()
-                execution_result.error_message = "任务已被禁用"
-                execution_result.result_data = None
-                execution_result.videos_count = 0
-                db.commit()
+            # 重新查询定时任务和关联的搜索任务，确保会话绑定
+            scheduled_task = db.query(ScheduledTask).filter_by(id=scheduled_task_id).first()
+            if not scheduled_task:
+                print(f"定时任务 {scheduled_task_id} 不存在")
+                db.close()
                 return
             
-            # 获取关联的搜索任务信息
-            search_task = db.query(Task).filter(Task.id == scheduled_task_refresh.task_id).first()
+            # 检查任务是否仍然处于活动状态
+            if not scheduled_task.is_active:
+                print(f"定时任务 {scheduled_task_id} 已被禁用，跳过执行")
+                db.close()
+                return
             
+            search_task = db.query(Task).filter_by(id=scheduled_task.task_id).first()
             if not search_task:
-                raise Exception("关联的搜索任务不存在")
+                print(f"定时任务 {scheduled_task_id} 关联的搜索任务不存在")
+                db.close()
+                return
             
-            # 调试：打印搜索任务的详细信息
-            print(f"定时任务 {scheduled_task.id} 关联的搜索任务:")
+            print(f"执行定时任务: {scheduled_task_id}")
+            print(f"定时任务 {scheduled_task_id} 关联的搜索任务:")
             print(f"  任务ID: {search_task.id}")
             print(f"  查询关键词: {search_task.query}")
             print(f"  最大结果: {search_task.max_results}")
@@ -232,187 +218,246 @@ class TaskScheduler:
             print(f"  视频质量: {search_task.video_definition}")
             print(f"  视频类型: {search_task.video_type}")
             
-            # 执行搜索任务 - 使用真实的YouTube API
-            try:
-                # 从数据库获取认证凭证
-                if not global_credential_store.is_authenticated(user_id='default'):
-                    error_msg = "没有可用的YouTube API认证凭证，请先进行OAuth认证"
-                    print(f"定时任务 {scheduled_task.id} 认证失败: {error_msg}")
-                    raise Exception(error_msg)
-                
-                # 获取凭证并认证YouTube服务
-                credentials = global_credential_store.get_credentials(user_id='default')
-                if not credentials:
-                    error_msg = "无法获取认证凭证对象"
-                    print(f"定时任务 {scheduled_task.id} 认证失败: {error_msg}")
-                    raise Exception(error_msg)
-                
-                if not youtube_service.authenticate(credentials):
-                    error_msg = "YouTube API认证失败，可能是凭证已过期"
-                    print(f"定时任务 {scheduled_task.id} 认证失败: {error_msg}")
-                    raise Exception(error_msg)
-                
-                print(f"定时任务 {scheduled_task.id} 认证成功，开始执行搜索...")
-                
-                # 记录搜索参数
-                print(f"定时任务 {scheduled_task.id} 搜索参数:")
-                print(f"  关键词: {search_task.query}")
-                print(f"  最大结果: {search_task.max_results}")
-                print(f"  发布时间范围: {search_task.published_after} 至 {search_task.published_before}")
-                print(f"  地区: {search_task.region_code}")
-                print(f"  语言: {search_task.relevance_language}")
-                print(f"  视频时长: {search_task.video_duration}")
-                print(f"  视频质量: {search_task.video_definition}")
-                print(f"  视频类型: {search_task.video_type}")
-                
-                # 调用真实的YouTube API执行搜索
-                result = youtube_service.search_videos(
-                    query=search_task.query,
-                    max_results=search_task.max_results,
-                    published_after=search_task.published_after,
-                    published_before=search_task.published_before,
-                    region_code=search_task.region_code,
-                    relevance_language=search_task.relevance_language,
-                    video_duration=search_task.video_duration,
-                    video_definition=search_task.video_definition,
-                    video_embeddable=search_task.video_embeddable,
-                    video_license=search_task.video_license,
-                    video_syndicated=search_task.video_syndicated,
-                    video_type=search_task.video_type,
-                )
-                
-                if result.get('success'):
-                    # 搜索成功，更新执行结果
-                    execution_result.status = 'success'
-                    execution_result.completed_at = get_east8_time()
-                    execution_result.error_message = None
-                    execution_result.result_data = result['data']
-                    execution_result.videos_count = result['data'].get('pageInfo', {}).get('totalResults', 0)
-                    
-                    # 保存视频信息
-                    if 'items' in result['data']:
-                        for i, video_data in enumerate(result['data']['items']):
-                            try:
-                                # 保存视频基本信息
-                                video_id = video_data.get('id', {}).get('videoId')
-                                if not video_id:
-                                    continue
-                                
-                                # 检查视频是否已存在
-                                existing_video = db.query(VideoInfo).filter(VideoInfo.video_id == video_id).first()
-                                if existing_video:
-                                    video_info = existing_video
-                                else:
-                                    # 创建新的视频信息
-                                    snippet = video_data.get('snippet', {})
-                                    statistics = video_data.get('statistics', {})
-                                    
-                                    video_info = VideoInfo(
-                                        video_id=video_id,
-                                        title=snippet.get('title'),
-                                        description=snippet.get('description'),
-                                        channel_title=snippet.get('channelTitle'),
-                                        channel_id=snippet.get('channelId'),
-                                        published_at=datetime.fromisoformat(snippet.get('publishedAt').replace('Z', '+00:00')).replace(tzinfo=EAST_8_TZ) if snippet.get('publishedAt') else None,
-                                        thumbnails=snippet.get('thumbnails'),
-                                        duration=snippet.get('duration'),
-                                        view_count=int(statistics.get('viewCount', 0)) if statistics.get('viewCount') else 0,
-                                        like_count=int(statistics.get('likeCount', 0)) if statistics.get('likeCount') else 0,
-                                        comment_count=int(statistics.get('commentCount', 0)) if statistics.get('commentCount') else 0,
-                                        tags=snippet.get('tags'),
-                                        category_id=snippet.get('categoryId'),
-                                        default_language=snippet.get('defaultLanguage'),
-                                        default_audio_language=snippet.get('defaultAudioLanguage')
-                                    )
-                                    db.add(video_info)
-                                    db.flush()
-                                
-                                # 创建视频执行结果关联
-                                from .models import VideoExecutionResult
-                                video_execution = VideoExecutionResult(
-                                    video_id=video_info.id,
-                                    scheduled_execution_result_id=execution_result.id,
-                                    rank=i + 1
-                                )
-                                db.add(video_execution)
-                            except Exception as video_error:
-                                print(f"保存视频信息失败: {video_error}")
-                                continue
-                    
-                    db.commit()
-                    print(f"定时任务 {scheduled_task.id} 执行成功，找到 {execution_result.videos_count} 个视频")
-                    
-                    # 发送飞书消息
-                    try:
-                        from .services.feishu_service import get_feishu_service
-                        feishu_service = get_feishu_service()
-                        if feishu_service:
-                            # 获取前25个视频用于发送到飞书
-                            video_executions = db.query(VideoExecutionResult).filter(
-                                VideoExecutionResult.scheduled_execution_result_id == execution_result.id
-                            ).order_by(VideoExecutionResult.rank).limit(25).all()
-                            
-                            videos = [ve.video for ve in video_executions if ve.video]
-                            if videos:
-                                execution_time = execution_result.completed_at.strftime("%Y-%m-%d %H:%M:%S")
-                                task_name = f"定时任务 {scheduled_task.id} - {search_task.query}"
-                                
-                                success = feishu_service.send_task_execution_result(
-                                    task_name=task_name,
-                                    videos=videos,
-                                    execution_time=execution_time,
-                                    total_count=execution_result.videos_count
-                                )
-                                
-                                if success:
-                                    print(f"飞书消息发送成功，任务: {task_name}")
-                                else:
-                                    print(f"飞书消息发送失败，任务: {task_name}")
-                            else:
-                                print("没有找到视频信息，跳过飞书消息发送")
-                        else:
-                            print("飞书服务未初始化，跳过消息发送")
-                    except Exception as feishu_error:
-                        print(f"发送飞书消息时出错: {feishu_error}")
-                    
-                else:
-                    # 搜索失败
-                    error_msg = result.get('error', '未知错误')
-                    execution_result.status = 'failed'
-                    execution_result.completed_at = get_east8_time()
-                    execution_result.error_message = error_msg
-                    execution_result.result_data = None
-                    execution_result.videos_count = 0
-                    db.commit()
-                    print(f"定时任务 {scheduled_task.id} 搜索失败: {error_msg}")
-                
-            except Exception as e:
-                # 执行过程中出现异常
-                error_msg = f"定时任务执行失败: {str(e)}"
+            # 创建执行结果记录
+            execution_result = ScheduledExecutionResult(
+                scheduled_task_id=scheduled_task_id,
+                status='running',
+                started_at=get_east8_time(),
+                completed_at=None,
+                error_message=None,
+                result_data=None,
+                videos_count=0
+            )
+            db.add(execution_result)
+            db.commit()
+            db.flush()  # 确保ID被分配
+            
+            # 检查认证状态
+            from .utils.auth_utils import global_credential_store
+            if not global_credential_store.is_authenticated():
+                error_msg = "没有可用的YouTube API认证凭证，请先进行OAuth认证"
                 execution_result.status = 'failed'
                 execution_result.completed_at = get_east8_time()
                 execution_result.error_message = error_msg
                 execution_result.result_data = None
                 execution_result.videos_count = 0
                 db.commit()
-                print(f"定时任务 {scheduled_task.id} 执行异常: {error_msg}")
-                
-        except Exception as e:
-            # 数据库操作异常
-            try:
+                print(f"定时任务 {scheduled_task_id} 认证失败: {error_msg}")
+                db.close()
+                return
+            
+            # 获取认证凭证
+            credentials = global_credential_store.get_credentials()
+            if not credentials:
+                error_msg = "无法获取认证凭证"
                 execution_result.status = 'failed'
                 execution_result.completed_at = get_east8_time()
-                execution_result.error_message = f"数据库操作失败: {str(e)}"
+                execution_result.error_message = error_msg
                 execution_result.result_data = None
                 execution_result.videos_count = 0
                 db.commit()
-            except:
+                print(f"定时任务 {scheduled_task_id} 获取凭证失败: {error_msg}")
+                db.close()
+                return
+            
+            # 认证YouTube服务
+            from .services.youtube_service import youtube_service
+            if not youtube_service.authenticate(credentials):
+                error_msg = "YouTube API认证失败"
+                execution_result.status = 'failed'
+                execution_result.completed_at = get_east8_time()
+                execution_result.error_message = error_msg
+                execution_result.result_data = None
+                execution_result.videos_count = 0
+                db.commit()
+                print(f"定时任务 {scheduled_task_id} 认证失败: {error_msg}")
+                db.close()
+                return
+            
+            print(f"定时任务 {scheduled_task_id} 认证成功，开始执行搜索...")
+            print(f"定时任务 {scheduled_task_id} 搜索参数:")
+            print(f"  关键词: {search_task.query}")
+            print(f"  最大结果: {search_task.max_results}")
+            print(f"  发布时间范围: {search_task.published_after} 至 {search_task.published_before}")
+            print(f"  地区: {search_task.region_code}")
+            print(f"  语言: {search_task.relevance_language}")
+            print(f"  视频时长: {search_task.video_duration}")
+            print(f"  视频质量: {search_task.video_definition}")
+            print(f"  视频类型: {search_task.video_type}")
+            
+            # 执行搜索
+            result = youtube_service.search_videos(
+                query=search_task.query,
+                max_results=search_task.max_results,
+                published_after=search_task.published_after,
+                published_before=search_task.published_before,
+                region_code=search_task.region_code,
+                relevance_language=search_task.relevance_language,
+                video_duration=search_task.video_duration,
+                video_definition=search_task.video_definition,
+                video_type=search_task.video_type,
+                video_syndicated=search_task.video_syndicated,
+            )
+            
+            if result.get('success'):
+                # 搜索成功，更新执行结果
+                execution_result.status = 'success'
+                execution_result.completed_at = get_east8_time()
+                execution_result.error_message = None
+                execution_result.result_data = result['data']
+                execution_result.videos_count = result['data'].get('pageInfo', {}).get('totalResults', 0)
+                
+                # 保存视频信息
+                if 'items' in result['data']:
+                    for i, video_data in enumerate(result['data']['items']):
+                        try:
+                            # 保存视频基本信息
+                            video_id = video_data.get('id', {}).get('videoId')
+                            if not video_id:
+                                continue
+                            
+                            # 检查视频是否已存在
+                            existing_video = db.query(VideoInfo).filter_by(video_id=video_id).first()
+                            if existing_video:
+                                video_info = existing_video
+                            else:
+                                # 创建新的视频信息
+                                snippet = video_data.get('snippet', {})
+                                statistics = video_data.get('statistics', {})
+                                
+                                video_info = VideoInfo(
+                                    video_id=video_id,
+                                    title=snippet.get('title'),
+                                    description=snippet.get('description'),
+                                    channel_title=snippet.get('channelTitle'),
+                                    channel_id=snippet.get('channelId'),
+                                    published_at=datetime.fromisoformat(snippet.get('publishedAt').replace('Z', '+00:00')).replace(tzinfo=EAST_8_TZ) if snippet.get('publishedAt') else None,
+                                    thumbnails=snippet.get('thumbnails'),
+                                    duration=snippet.get('duration'),
+                                    view_count=int(statistics.get('viewCount', 0)) if statistics.get('viewCount') else 0,
+                                    like_count=int(statistics.get('likeCount', 0)) if statistics.get('likeCount') else 0,
+                                    comment_count=int(statistics.get('commentCount', 0)) if statistics.get('commentCount') else 0,
+                                    tags=snippet.get('tags'),
+                                    category_id=snippet.get('categoryId'),
+                                    default_language=snippet.get('defaultLanguage'),
+                                    default_audio_language=snippet.get('defaultAudioLanguage')
+                                )
+                                db.add(video_info)
+                                db.flush()  # 确保ID被分配
+                            
+                            # 尝试翻译视频标题和描述
+                            try:
+                                from .services.translate_service import get_translate_service
+                                translate_service = get_translate_service()
+                                if translate_service:
+                                    # 翻译标题
+                                    if video_info.title:
+                                        translated_title = translate_service.translate_text(video_info.title)
+                                        if translated_title:
+                                            video_info.translated_title = translated_title
+                                            print(f"标题翻译: '{video_info.title}' -> '{translated_title}'")
+                                    
+                                    # 翻译描述
+                                    if video_info.description:
+                                        translated_description = translate_service.translate_text(video_info.description)
+                                        if translated_description:
+                                            video_info.translated_description = translated_description
+                                            print(f"描述翻译: '{video_info.description[:50]}...' -> '{translated_description[:50]}...'")
+                                    
+                                    # 更新翻译时间
+                                    if translated_title or translated_description:
+                                        video_info.translation_updated_at = get_east8_time()
+                            except Exception as translate_error:
+                                print(f"翻译视频信息时出错: {translate_error}")
+                            
+                            # 创建视频执行结果关联
+                            from .models import VideoExecutionResult
+                            video_execution = VideoExecutionResult(
+                                video_id=video_info.id,
+                                scheduled_execution_result_id=execution_result.id,
+                                rank=i + 1
+                            )
+                            db.add(video_execution)
+                            
+                            # 提交当前视频的更改
+                            try:
+                                db.commit()
+                            except Exception as commit_error:
+                                print(f"提交视频信息失败: {commit_error}")
+                                db.rollback()
+                                continue
+                        except Exception as video_error:
+                            print(f"保存视频信息失败: {video_error}")
+                            continue
+                
+                db.commit()
+                print(f"定时任务 {scheduled_task.id} 执行成功，找到 {execution_result.videos_count} 个视频")
+                
+                # 发送飞书消息
+                try:
+                    from .services.feishu_service import get_feishu_service
+                    feishu_service = get_feishu_service()
+                    if feishu_service:
+                        # 获取前25个视频用于发送到飞书
+                        video_executions = db.query(VideoExecutionResult).filter(
+                            VideoExecutionResult.scheduled_execution_result_id == execution_result.id
+                        ).order_by(VideoExecutionResult.rank).limit(25).all()
+                        
+                        videos = [ve.video for ve in video_executions if ve.video]
+                        if videos:
+                            execution_time = execution_result.completed_at.strftime("%Y-%m-%d %H:%M:%S")
+                            task_name = f"定时任务 {scheduled_task.id} - {search_task.query}"
+                            
+                            success = feishu_service.send_task_execution_result(
+                                task_name=task_name,
+                                videos=videos,
+                                execution_time=execution_time,
+                                total_count=execution_result.videos_count
+                            )
+                            
+                            if success:
+                                print(f"飞书消息发送成功，任务: {task_name}")
+                            else:
+                                print(f"飞书消息发送失败，任务: {task_name}")
+                        else:
+                            print("没有找到视频信息，跳过飞书消息发送")
+                    else:
+                        print("飞书服务未初始化，跳过消息发送")
+                except Exception as feishu_error:
+                    print(f"发送飞书消息时出错: {feishu_error}")
+                
+            else:
+                # 搜索失败
+                error_msg = result.get('error', '未知错误')
+                execution_result.status = 'failed'
+                execution_result.completed_at = get_east8_time()
+                execution_result.error_message = error_msg
+                execution_result.result_data = None
+                execution_result.videos_count = 0
+                db.commit()
+                print(f"定时任务 {scheduled_task.id} 搜索失败: {error_msg}")
+            
+        except Exception as e:
+            # 执行过程中出现异常
+            try:
+                if 'execution_result' in locals():
+                    execution_result.status = 'failed'
+                    execution_result.completed_at = get_east8_time()
+                    execution_result.error_message = f"定时任务执行失败: {str(e)}"
+                    execution_result.result_data = None
+                    execution_result.videos_count = 0
+                    db.commit()
+                print(f"定时任务 {scheduled_task_id} 执行异常: {str(e)}")
+            except Exception as commit_error:
+                print(f"更新执行结果失败: {commit_error}")
                 db.rollback()
-            print(f"定时任务 {scheduled_task.id} 数据库操作失败: {str(e)}")
         finally:
-            db.close()
+            try:
+                db.close()
+            except:
+                pass
         
-        print(f"定时任务执行完成: {scheduled_task.id}")
+        print(f"定时任务执行完成: {scheduled_task_id}")
     
     def load_existing_tasks(self):
         """加载数据库中已存在的定时任务"""
@@ -427,6 +472,29 @@ class TaskScheduler:
             db.close()
         except Exception as e:
             print(f"加载定时任务失败: {e}")
+
+    def check_scheduled_task_status(self):
+        """检查定时任务状态"""
+        try:
+            db = db_manager.get_session()
+            scheduled_tasks = db.query(ScheduledTask).all()
+            
+            for scheduled_task in scheduled_tasks:
+                try:
+                    # 重新查询任务状态，避免会话绑定问题
+                    task_refresh = db.query(ScheduledTask).filter_by(id=scheduled_task.id).first()
+                    if task_refresh and not task_refresh.is_active:
+                        # 任务已被禁用，从调度器中移除
+                        self.remove_scheduled_task(scheduled_task.id)
+                        print(f"定时任务 {scheduled_task.id} 已被禁用，从调度器中移除")
+                except Exception as e:
+                    print(f"检查定时任务 {scheduled_task.id} 状态时出错: {e}")
+                    continue
+                    
+        except Exception as e:
+            print(f"检查定时任务状态时出错: {e}")
+        finally:
+            db.close()
 
 
 # 全局调度器实例

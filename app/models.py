@@ -122,6 +122,11 @@ class VideoInfo(Base):
     default_audio_language = Column(String(10))
     created_at = Column(DateTime, default=get_east8_time)
     
+    # 翻译相关字段
+    translated_title = Column(String(500))  # 翻译后的标题
+    translated_description = Column(Text)   # 翻译后的描述
+    translation_updated_at = Column(DateTime)  # 翻译更新时间
+    
     # 关联执行结果
     execution_results = relationship("VideoExecutionResult", back_populates="video", cascade="all, delete-orphan")
 
