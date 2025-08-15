@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事件管理系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            --secondary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --accent-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            --dark-bg: #1a1a2e;
+            --card-bg: #ffffff;
+            --border-radius: 12px;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --shadow-hover: 0 8px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .tag {
+            display: inline-block;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 15px;
+            padding: 2px 8px;
+            margin: 2px;
+            font-size: 0.8em;
+            color: #495057;
+            transition: all 0.3s ease;
+        }
+
+        .tag:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .tag.country {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
+        .tag.domain {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .tag.focus {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+
+        .table-responsive {
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-xl {
+            max-width: 90%;
+        }
+
+        .search-box {
+            background: #ffffff;
+            border-radius: var(--border-radius);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .search-box .form-control,
+        .search-box .form-select {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            background: white;
+        }
+
+        .search-box .form-control:focus,
+        .search-box .form-select:focus {
+            border-color: #6c757d;
+            box-shadow: 0 0 0 0.1rem rgba(108, 117, 125, 0.25);
+            transform: none;
+        }
+
+        .search-box .btn {
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .search-box .btn:hover {
+            transform: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .stats-card {
+            background: #ffffff;
+            color: #495057;
+            border-radius: var(--border-radius);
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border: 1px solid #e9ecef;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .stats-card .stats-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 8px;
+        }
+
+        .stats-card h6 {
+            font-weight: 500;
+            color: #6c757d;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .stats-card i {
+            opacity: 0.6;
+            color: #6c757d;
+        }
+
+        .card {
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: #f8f9fa;
+            color: #495057;
+            border-radius: 0;
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            padding: 10px 15px;
+            transition: all 0.2s ease;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #6c757d;
+            box-shadow: 0 0 0 0.1rem rgba(108, 117, 125, 0.25);
+            transform: none;
+        }
+
+        .btn {
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .navbar {
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+        }
+
+        .navbar-brand {
+            font-weight: 500;
+            font-size: 1.2rem;
+        }
+
+        .nav-link {
+            font-weight: 400;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover {
+            transform: none;
+        }
+
+        .table {
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            background: white;
+        }
+
+        .table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            border: none;
+            padding: 16px 15px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+
+
+        .table tbody tr {
+            transition: all 0.2s ease;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .table tbody td {
+            padding: 16px 15px;
+            vertical-align: middle;
+            border: none;
+            font-size: 0.9rem;
+        }
+
+        /* 事件名称列样式 */
+        .event-name-cell {
+            min-width: 200px;
+        }
+
+        .event-name-cell .event-title {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+
+        .event-name-cell .event-description {
+            color: #6c757d;
+            font-size: 0.8rem;
+            line-height: 1.3;
+        }
+
+        /* 标签样式优化 */
+        .tag {
+            display: inline-block;
+            background: #e9ecef;
+            color: #495057;
+            border: 1px solid #dee2e6;
+            border-radius: 16px;
+            padding: 4px 10px;
+            margin: 2px;
+            font-size: 0.8rem;
+            font-weight: 400;
+            transition: all 0.2s ease;
+        }
+
+        .tag:hover {
+            background: #dee2e6;
+            transform: none;
+        }
+
+        .tag.country {
+            background: #d1ecf1;
+            border-color: #bee5eb;
+            color: #0c5460;
+        }
+
+        .tag.domain {
+            background: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+
+        .tag.focus {
+            background: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+
+        /* 徽章样式优化 */
+        .badge {
+            border-radius: 16px;
+            padding: 6px 12px;
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        .badge.bg-primary {
+            background: #6c757d !important;
+        }
+
+        .badge.bg-success {
+            background: #28a745 !important;
+        }
+
+        .badge.bg-warning {
+            background: #ffc107 !important;
+            color: #212529 !important;
+        }
+
+        .badge.bg-danger {
+            background: #dc3545 !important;
+        }
+
+        .badge.bg-secondary {
+            background: #6c757d !important;
+        }
+
+        /* 操作按钮组样式 */
+        .btn-group-sm .btn {
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin: 0 1px;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-group-sm .btn:hover {
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 表格容器样式 */
+        .table-container {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        /* 空状态样式 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #dee2e6;
+        }
+
+        .empty-state h5 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: #6c757d;
+            margin-bottom: 0;
+        }
+
+        .modal-content {
+            border-radius: var(--border-radius);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .modal-header {
+            background: #f8f9fa;
+            color: #495057;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .badge {
+            border-radius: 12px;
+            padding: 4px 8px;
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-gradient mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="container-fluid">
+            <a class="navbar-brand text-dark fw-bold" href="#" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                <i class="fas fa-shield-alt text-primary me-2"></i>声像监控平台
+            </a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link text-dark fw-semibold" href="/" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-search me-1"></i>YouTube搜索
+                </a>
+                <a class="nav-link active text-dark fw-semibold" href="/events" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-calendar-alt me-1"></i>事件管理
+                </a>
+            </div>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item">
+                    <span class="nav-link text-dark fw-semibold" id="credential-status" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <i class="fas fa-spinner fa-spin"></i> 检查认证状态...
+                    </span>
+                </div>
+                <div class="nav-item">
+                    <button class="btn btn-outline-dark btn-sm fw-semibold" onclick="logout()">
+                        <i class="fas fa-sign-out-alt me-1"></i>退出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <!-- 统计卡片 -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-0">总事件数</h6>
+                            <div class="stats-number" id="total-events">0</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-alt fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-0">涉及中国</h6>
+                            <div class="stats-number" id="china-events">0</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-flag fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-0">活跃任务</h6>
+                            <div class="stats-number" id="active-tasks">0</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-tasks fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="mb-0">本月新增</h6>
+                            <div class="stats-number" id="monthly-events">0</div>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-plus-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 搜索和过滤 -->
+        <div class="search-box">
+            <div class="row">
+                <div class="col-md-3">
+                    <input type="text" class="form-control" id="search-name" placeholder="搜索事件名称...">
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filter-type">
+                        <option value="">所有类型</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filter-domain">
+                        <option value="">所有领域</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select class="form-select" id="filter-china">
+                        <option value="">所有事件</option>
+                        <option value="true">涉及中国</option>
+                        <option value="false">不涉及中国</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-primary me-2" onclick="searchEvents()">
+                        <i class="fas fa-search me-1"></i>搜索
+                    </button>
+                    <button class="btn btn-success" onclick="showCreateEventModal()">
+                        <i class="fas fa-plus me-1"></i>新建事件
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 事件表格 -->
+        <div class="table-container">
+            <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; margin: 0;">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>事件列表
+                    </h5>
+                    <span class="badge bg-light text-dark" id="events-count">0 个事件</span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 250px;">事件信息</th>
+                            <th style="min-width: 120px;">类型</th>
+                            <th style="min-width: 150px;">涉及国家</th>
+                            <th style="min-width: 150px;">涉及领域</th>
+                            <th style="min-width: 150px;">关键词</th>
+                            <th style="min-width: 150px;">关注点</th>
+                            <th style="min-width: 100px;">中国相关</th>
+                            <th style="min-width: 120px;">关联任务</th>
+                            <th style="min-width: 150px;">时间范围</th>
+                            <th style="min-width: 120px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="events-table-body">
+                        <!-- 事件数据将在这里动态加载 -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- 空状态显示 -->
+            <div id="empty-state" class="empty-state" style="display: none;">
+                <i class="fas fa-calendar-times"></i>
+                <h5>暂无事件</h5>
+                <p>点击"新建事件"按钮开始创建您的第一个事件</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑事件模态框 -->
+    <div class="modal fade" id="eventModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventModalTitle">新建事件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="eventForm">
+                        <input type="hidden" id="event-id">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-name" class="form-label">事件名称 *</label>
+                                    <input type="text" class="form-control" id="event-name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-type" class="form-label">事件类型 *</label>
+                                    <select class="form-select" id="event-type" required>
+                                        <option value="">请选择事件类型</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start-date" class="form-label">开始日期</label>
+                                    <input type="datetime-local" class="form-control" id="start-date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="end-date" class="form-label">结束日期</label>
+                                    <input type="datetime-local" class="form-control" id="end-date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">涉及国家</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="country-input" placeholder="输入国家名称">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="addCountry()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="countries-tags" class="mt-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">涉及领域</label>
+                                    <div id="domains-checkboxes" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">关键词</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="keyword-input" placeholder="输入关键词">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="addKeyword()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="keywords-tags" class="mt-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">关注点</label>
+                                    <div id="focus-checkboxes" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="involves-china">
+                                        <label class="form-check-label" for="involves-china">
+                                            是否直接涉及中国
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-description" class="form-label">事件描述</label>
+                                    <textarea class="form-control" id="event-description" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">关联定时任务</label>
+                            <div class="input-group">
+                                <select class="form-select" id="task-select">
+                                    <option value="">选择定时任务</option>
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" onclick="addTask()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div id="tasks-list" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEvent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 事件详情模态框 -->
+    <div class="modal fade" id="eventDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">事件详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="event-detail-content">
+                    <!-- 事件详情将在这里显示 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建/编辑事件模态框 -->
+    <div class="modal fade" id="eventModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="eventModalTitle">新建事件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="eventForm">
+                        <input type="hidden" id="event-id">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-name" class="form-label">事件名称 *</label>
+                                    <input type="text" class="form-control" id="event-name" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-type" class="form-label">事件类型 *</label>
+                                    <select class="form-select" id="event-type" required>
+                                        <option value="">请选择事件类型</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="start-date" class="form-label">开始日期</label>
+                                    <input type="datetime-local" class="form-control" id="start-date">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="end-date" class="form-label">结束日期</label>
+                                    <input type="datetime-local" class="form-control" id="end-date">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">涉及国家</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="country-input" placeholder="输入国家名称">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="addCountry()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="countries-tags" class="mt-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">涉及领域</label>
+                                    <div id="domains-checkboxes" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">关键词</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="keyword-input" placeholder="输入关键词">
+                                        <button class="btn btn-outline-secondary" type="button" onclick="addKeyword()">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                    </div>
+                                    <div id="keywords-tags" class="mt-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">关注点</label>
+                                    <div id="focus-checkboxes" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="involves-china">
+                                        <label class="form-check-label" for="involves-china">
+                                            是否直接涉及中国
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="event-description" class="form-label">事件描述</label>
+                                    <textarea class="form-control" id="event-description" rows="3"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">关联定时任务</label>
+                            <div class="input-group">
+                                <select class="form-select" id="task-select">
+                                    <option value="">选择定时任务</option>
+                                </select>
+                                <button class="btn btn-outline-secondary" type="button" onclick="addTask()">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div id="tasks-list" class="mt-2"></div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEvent()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 事件详情模态框 -->
+    <div class="modal fade" id="eventDetailModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">事件详情</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="event-detail-content">
+                    <!-- 事件详情将在这里显示 -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let events = [];
+        let scheduledTasks = [];
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadEventTypes();
+            loadDomains();
+            loadFocusPoints();
+            loadScheduledTasks();
+            loadEvents();
+            checkCredentialStatus();
+        });
+
+        // 加载事件类型
+        async function loadEventTypes() {
+            try {
+                const response = await fetch('/api/events/types');
+                const data = await response.json();
+                if (data.success) {
+                    const typeSelect = document.getElementById('event-type');
+                    const filterType = document.getElementById('filter-type');
+                    
+                    data.types.forEach(type => {
+                        typeSelect.add(new Option(type, type));
+                        filterType.add(new Option(type, type));
+                    });
+                }
+            } catch (error) {
+                console.error('加载事件类型失败:', error);
+            }
+        }
+
+        // 加载领域
+        async function loadDomains() {
+            try {
+                const response = await fetch('/api/events/domains');
+                const data = await response.json();
+                if (data.success) {
+                    const domainsContainer = document.getElementById('domains-checkboxes');
+                    const filterDomain = document.getElementById('filter-domain');
+                    
+                    data.domains.forEach(domain => {
+                        // 创建复选框
+                        const div = document.createElement('div');
+                        div.className = 'form-check form-check-inline';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" value="${domain}" id="domain-${domain}">
+                            <label class="form-check-label" for="domain-${domain}">${domain}</label>
+                        `;
+                        domainsContainer.appendChild(div);
+                        
+                        // 添加到过滤器
+                        filterDomain.add(new Option(domain, domain));
+                    });
+                }
+            } catch (error) {
+                console.error('加载领域失败:', error);
+            }
+        }
+
+        // 加载关注点
+        async function loadFocusPoints() {
+            try {
+                const response = await fetch('/api/events/focus-points');
+                const data = await response.json();
+                if (data.success) {
+                    const focusContainer = document.getElementById('focus-checkboxes');
+                    
+                    data.focus_points.forEach(focus => {
+                        const div = document.createElement('div');
+                        div.className = 'form-check form-check-inline';
+                        div.innerHTML = `
+                            <input class="form-check-input" type="checkbox" value="${focus}" id="focus-${focus}">
+                            <label class="form-check-label" for="focus-${focus}">${focus}</label>
+                        `;
+                        focusContainer.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error('加载关注点失败:', error);
+            }
+        }
+
+        // 加载定时任务
+        async function loadScheduledTasks() {
+            try {
+                const response = await fetch('/api/scheduled-tasks');
+                const data = await response.json();
+                if (data.success) {
+                    scheduledTasks = data.scheduled_tasks;
+                    const taskSelect = document.getElementById('task-select');
+                    taskSelect.innerHTML = '<option value="">选择定时任务</option>';
+                    
+                    scheduledTasks.forEach(task => {
+                        const option = new Option(
+                            `${task.task.query} (${task.schedule_type})`, 
+                            task.id
+                        );
+                        taskSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载定时任务失败:', error);
+            }
+        }
+
+        // 加载事件列表
+        async function loadEvents() {
+            try {
+                const response = await fetch('/api/events');
+                const data = await response.json();
+                if (data.success) {
+                    events = data.events;
+                    renderEvents();
+                    updateStats();
+                }
+            } catch (error) {
+                console.error('加载事件失败:', error);
+            }
+        }
+
+        // 渲染事件列表
+        function renderEvents() {
+            const tbody = document.getElementById('events-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const eventsCount = document.getElementById('events-count');
+            
+            // 更新事件计数
+            eventsCount.textContent = `${events.length} 个事件`;
+            
+            if (events.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            tbody.innerHTML = '';
+            
+            events.forEach(event => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="event-name-cell">
+                        <div class="event-title">${event.name}</div>
+                        <div class="event-description">${event.description || '暂无描述'}</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-primary">${event.event_type}</span>
+                    </td>
+                    <td>
+                        ${renderTags(event.countries, 'country')}
+                    </td>
+                    <td>
+                        ${renderTags(event.domains, 'domain')}
+                    </td>
+                    <td>
+                        ${renderTags(event.keywords, 'tag')}
+                    </td>
+                    <td>
+                        ${renderTags(event.focus_points, 'focus')}
+                    </td>
+                    <td>
+                        ${event.involves_china ? 
+                            '<span class="badge bg-danger"><i class="fas fa-flag me-1"></i>涉及中国</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>不涉及</span>'
+                        }
+                    </td>
+                    <td>
+                        ${event.scheduled_tasks.length > 0 ? 
+                            `<span class="badge bg-success"><i class="fas fa-tasks me-1"></i>${event.scheduled_tasks.length}个任务</span>` : 
+                            '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>无关联任务</span>'
+                        }
+                    </td>
+                    <td>
+                        <div class="text-muted">
+                            ${formatDateRange(event.start_date, event.end_date)}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})" title="查看详情">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})" title="编辑事件">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})" title="删除事件">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 渲染标签
+        function renderTags(tags, type = 'tag') {
+            if (!tags || tags.length === 0) return '<span class="text-muted">无</span>';
+            return tags.map(tag => `<span class="tag ${type}">${tag}</span>`).join('');
+        }
+
+        // 格式化日期范围
+        function formatDateRange(startDate, endDate) {
+            if (!startDate && !endDate) return '<span class="text-muted">未设置</span>';
+            
+            let result = '';
+            if (startDate) {
+                result += `开始: ${new Date(startDate).toLocaleDateString('zh-CN')}`;
+            }
+            if (endDate) {
+                if (result) result += '<br>';
+                result += `结束: ${new Date(endDate).toLocaleDateString('zh-CN')}`;
+            }
+            return result;
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            document.getElementById('total-events').textContent = events.length;
+            document.getElementById('china-events').textContent = events.filter(e => e.involves_china).length;
+            
+            const activeTasks = events.reduce((total, event) => {
+                return total + event.scheduled_tasks.filter(task => task.status).length;
+            }, 0);
+            document.getElementById('active-tasks').textContent = activeTasks;
+            
+            const now = new Date();
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthlyEvents = events.filter(e => {
+                const created = new Date(e.created_at);
+                return created >= monthStart;
+            }).length;
+            document.getElementById('monthly-events').textContent = monthlyEvents;
+        }
+
+        // 显示创建事件模态框
+        function showCreateEventModal() {
+            document.getElementById('eventModalTitle').textContent = '新建事件';
+            document.getElementById('eventForm').reset();
+            document.getElementById('event-id').value = '';
+            clearTags();
+            clearTasks();
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+        }
+
+        // 编辑事件
+        function editEvent(eventId) {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+            
+            document.getElementById('eventModalTitle').textContent = '编辑事件';
+            document.getElementById('event-id').value = event.id;
+            document.getElementById('event-name').value = event.name;
+            document.getElementById('event-type').value = event.event_type;
+            document.getElementById('start-date').value = event.start_date ? event.start_date.slice(0, 16) : '';
+            document.getElementById('end-date').value = event.end_date ? event.end_date.slice(0, 16) : '';
+            document.getElementById('event-description').value = event.description || '';
+            document.getElementById('involves-china').checked = event.involves_china;
+            
+            // 设置标签
+            setTags('countries-tags', event.countries || []);
+            setTags('keywords-tags', event.keywords || []);
+            
+            // 设置复选框
+            setCheckboxes('domains-checkboxes', event.domains || []);
+            setCheckboxes('focus-checkboxes', event.focus_points || []);
+            
+            // 设置关联任务
+            setTasks(event.scheduled_tasks || []);
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+        }
+
+        // 查看事件详情
+        function viewEvent(eventId) {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+            
+            const content = document.getElementById('event-detail-content');
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>基本信息</h6>
+                        <p><strong>事件名称:</strong> ${event.name}</p>
+                        <p><strong>事件类型:</strong> <span class="badge bg-primary">${event.event_type}</span></p>
+                        <p><strong>涉及中国:</strong> ${event.involves_china ? '是' : '否'}</p>
+                        <p><strong>开始日期:</strong> ${event.start_date ? new Date(event.start_date).toLocaleString('zh-CN') : '未设置'}</p>
+                        <p><strong>结束日期:</strong> ${event.end_date ? new Date(event.end_date).toLocaleString('zh-CN') : '未设置'}</p>
+                        <p><strong>描述:</strong> ${event.description || '无描述'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>详细信息</h6>
+                        <p><strong>涉及国家:</strong> ${renderTags(event.countries, 'country')}</p>
+                        <p><strong>涉及领域:</strong> ${renderTags(event.domains, 'domain')}</p>
+                        <p><strong>关键词:</strong> ${renderTags(event.keywords, 'tag')}</p>
+                        <p><strong>关注点:</strong> ${renderTags(event.focus_points, 'focus')}</p>
+                        <p><strong>关联任务:</strong> ${event.scheduled_tasks.length > 0 ? 
+                            event.scheduled_tasks.map(task => `<span class="badge bg-success">${task.query}</span>`).join(' ') : 
+                            '无关联任务'}</p>
+                    </div>
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
+            modal.show();
+        }
+
+        // 删除事件
+        async function deleteEvent(eventId) {
+            if (!confirm('确定要删除这个事件吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/events/${eventId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('事件删除成功');
+                    loadEvents();
+                } else {
+                    alert('删除失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('删除事件失败:', error);
+                alert('删除事件失败');
+            }
+        }
+
+        // 保存事件
+        async function saveEvent() {
+            const form = document.getElementById('eventForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const eventData = {
+                name: document.getElementById('event-name').value,
+                event_type: document.getElementById('event-type').value,
+                start_date: document.getElementById('start-date').value,
+                end_date: document.getElementById('end-date').value,
+                description: document.getElementById('event-description').value,
+                involves_china: document.getElementById('involves-china').checked,
+                countries: getTags('countries-tags'),
+                domains: getCheckboxes('domains-checkboxes'),
+                keywords: getTags('keywords-tags'),
+                focus_points: getCheckboxes('focus-checkboxes'),
+                scheduled_task_ids: getTasks()
+            };
+            
+            const eventId = document.getElementById('event-id').value;
+            const url = eventId ? `/api/events/${eventId}` : '/api/events';
+            const method = eventId ? 'PUT' : 'POST';
+            
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(eventData)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(eventId ? '事件更新成功' : '事件创建成功');
+                    bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+                    loadEvents();
+                } else {
+                    alert('操作失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('保存事件失败:', error);
+                alert('保存事件失败');
+            }
+        }
+
+        // 标签管理函数
+        function addCountry() {
+            const input = document.getElementById('country-input');
+            const value = input.value.trim();
+            if (value) {
+                addTag('countries-tags', value);
+                input.value = '';
+            }
+        }
+
+        function addKeyword() {
+            const input = document.getElementById('keyword-input');
+            const value = input.value.trim();
+            if (value) {
+                addTag('keywords-tags', value);
+                input.value = '';
+            }
+        }
+
+        function addTag(containerId, value) {
+            const container = document.getElementById(containerId);
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.innerHTML = `
+                ${value}
+                <i class="fas fa-times ms-1" onclick="this.parentElement.remove()"></i>
+            `;
+            container.appendChild(tag);
+        }
+
+        function clearTags() {
+            document.getElementById('countries-tags').innerHTML = '';
+            document.getElementById('keywords-tags').innerHTML = '';
+        }
+
+        function setTags(containerId, tags) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            tags.forEach(tag => addTag(containerId, tag));
+        }
+
+        function getTags(containerId) {
+            const container = document.getElementById(containerId);
+            return Array.from(container.children).map(tag => tag.textContent.trim().replace('×', '').trim());
+        }
+
+        // 复选框管理函数
+        function setCheckboxes(containerId, values) {
+            const container = document.getElementById(containerId);
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = values.includes(checkbox.value);
+            });
+        }
+
+        function getCheckboxes(containerId) {
+            const container = document.getElementById(containerId);
+            return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+
+        // 任务管理函数
+        function addTask() {
+            const select = document.getElementById('task-select');
+            const taskId = select.value;
+            if (!taskId) return;
+            
+            const task = scheduledTasks.find(t => t.id == taskId);
+            if (task) {
+                addTaskToList(task);
+                select.value = '';
+            }
+        }
+
+        function addTaskToList(task) {
+            const container = document.getElementById('tasks-list');
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+            taskDiv.innerHTML = `
+                <span>${task.task.query} (${task.schedule_type})</span>
+                <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+            `;
+            container.appendChild(taskDiv);
+        }
+
+        function clearTasks() {
+            document.getElementById('tasks-list').innerHTML = '';
+        }
+
+        function setTasks(tasks) {
+            clearTasks();
+            tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+                taskDiv.innerHTML = `
+                    <span>${task.query} (${task.schedule_type})</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+                `;
+                document.getElementById('tasks-list').appendChild(taskDiv);
+            });
+        }
+
+        function getTasks() {
+            const inputs = document.querySelectorAll('input[name="scheduled_task_ids"]');
+            return Array.from(inputs).map(input => parseInt(input.value));
+        }
+
+        // 搜索事件
+        function searchEvents() {
+            const nameFilter = document.getElementById('search-name').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+            const domainFilter = document.getElementById('filter-domain').value;
+            const chinaFilter = document.getElementById('filter-china').value;
+            
+            const filteredEvents = events.filter(event => {
+                const nameMatch = !nameFilter || event.name.toLowerCase().includes(nameFilter);
+                const typeMatch = !typeFilter || event.event_type === typeFilter;
+                const domainMatch = !domainFilter || (event.domains && event.domains.includes(domainFilter));
+                const chinaMatch = chinaFilter === '' || event.involves_china.toString() === chinaFilter;
+                
+                return nameMatch && typeMatch && domainMatch && chinaMatch;
+            });
+            
+            renderFilteredEvents(filteredEvents);
+        }
+
+        function renderFilteredEvents(filteredEvents) {
+            const tbody = document.getElementById('events-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const eventsCount = document.getElementById('events-count');
+            
+            // 更新事件计数
+            eventsCount.textContent = `${filteredEvents.length} 个事件`;
+            
+            if (filteredEvents.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = `
+                    <i class="fas fa-search"></i>
+                    <h5>未找到匹配的事件</h5>
+                    <p>请尝试调整搜索条件或创建新事件</p>
+                `;
+                return;
+            }
+            
+            emptyState.style.display = 'none';
+            tbody.innerHTML = '';
+            
+            filteredEvents.forEach(event => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="event-name-cell">
+                        <div class="event-title">${event.name}</div>
+                        <div class="event-description">${event.description || '暂无描述'}</div>
+                    </td>
+                    <td>
+                        <span class="badge bg-primary">${event.event_type}</span>
+                    </td>
+                    <td>
+                        ${renderTags(event.countries, 'country')}
+                    </td>
+                    <td>
+                        ${renderTags(event.domains, 'domain')}
+                    </td>
+                    <td>
+                        ${renderTags(event.keywords, 'tag')}
+                    </td>
+                    <td>
+                        ${renderTags(event.focus_points, 'focus')}
+                    </td>
+                    <td>
+                        ${event.involves_china ? 
+                            '<span class="badge bg-danger"><i class="fas fa-flag me-1"></i>涉及中国</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>不涉及</span>'
+                        }
+                    </td>
+                    <td>
+                        ${event.scheduled_tasks.length > 0 ? 
+                            `<span class="badge bg-success"><i class="fas fa-tasks me-1"></i>${event.scheduled_tasks.length}个任务</span>` : 
+                            '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>无关联任务</span>'
+                        }
+                    </td>
+                    <td>
+                        <div class="text-muted">
+                            ${formatDateRange(event.start_date, event.end_date)}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})" title="查看详情">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})" title="编辑事件">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})" title="删除事件">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 认证状态检查
+        async function checkCredentialStatus() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+                
+                const statusElement = document.getElementById('credential-status');
+                if (data.authenticated) {
+                    statusElement.innerHTML = '<i class="fas fa-check-circle text-success"></i> 已认证';
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-times-circle text-danger"></i> 未认证';
+                }
+            } catch (error) {
+                console.error('检查认证状态失败:', error);
+                document.getElementById('credential-status').innerHTML = '<i class="fas fa-exclamation-triangle text-warning"></i> 检查失败';
+            }
+        }
+
+        // 显示创建事件模态框
+        function showCreateEventModal() {
+            document.getElementById('eventModalTitle').textContent = '新建事件';
+            document.getElementById('eventForm').reset();
+            document.getElementById('event-id').value = '';
+            clearTags();
+            clearTasks();
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+        }
+
+        // 编辑事件
+        function editEvent(eventId) {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+            
+            document.getElementById('eventModalTitle').textContent = '编辑事件';
+            document.getElementById('event-id').value = event.id;
+            document.getElementById('event-name').value = event.name;
+            document.getElementById('event-type').value = event.event_type;
+            document.getElementById('start-date').value = event.start_date ? event.start_date.slice(0, 16) : '';
+            document.getElementById('end-date').value = event.end_date ? event.end_date.slice(0, 16) : '';
+            document.getElementById('event-description').value = event.description || '';
+            document.getElementById('involves-china').checked = event.involves_china;
+            
+            // 设置标签
+            setTags('countries-tags', event.countries || []);
+            setTags('keywords-tags', event.keywords || []);
+            
+            // 设置复选框
+            setCheckboxes('domains-checkboxes', event.domains || []);
+            setCheckboxes('focus-checkboxes', event.focus_points || []);
+            
+            // 设置关联任务
+            setTasks(event.scheduled_tasks || []);
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
+            modal.show();
+        }
+
+        // 查看事件详情
+        function viewEvent(eventId) {
+            const event = events.find(e => e.id === eventId);
+            if (!event) return;
+            
+            const content = document.getElementById('event-detail-content');
+            content.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>基本信息</h6>
+                        <p><strong>事件名称:</strong> ${event.name}</p>
+                        <p><strong>事件类型:</strong> <span class="badge bg-primary">${event.event_type}</span></p>
+                        <p><strong>涉及中国:</strong> ${event.involves_china ? '是' : '否'}</p>
+                        <p><strong>开始日期:</strong> ${event.start_date ? new Date(event.start_date).toLocaleString('zh-CN') : '未设置'}</p>
+                        <p><strong>结束日期:</strong> ${event.end_date ? new Date(event.end_date).toLocaleString('zh-CN') : '未设置'}</p>
+                        <p><strong>描述:</strong> ${event.description || '无描述'}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>详细信息</h6>
+                        <p><strong>涉及国家:</strong> ${renderTags(event.countries, 'country')}</p>
+                        <p><strong>涉及领域:</strong> ${renderTags(event.domains, 'domain')}</p>
+                        <p><strong>关键词:</strong> ${renderTags(event.keywords, 'tag')}</p>
+                        <p><strong>关注点:</strong> ${renderTags(event.focus_points, 'focus')}</p>
+                        <p><strong>关联任务:</strong> ${event.scheduled_tasks.length > 0 ? 
+                            event.scheduled_tasks.map(task => `<span class="badge bg-success">${task.query}</span>`).join(' ') : 
+                            '无关联任务'}</p>
+                    </div>
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
+            modal.show();
+        }
+
+        // 删除事件
+        async function deleteEvent(eventId) {
+            if (!confirm('确定要删除这个事件吗？此操作不可恢复。')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/events/${eventId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('事件删除成功');
+                    loadEvents();
+                } else {
+                    alert('删除失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('删除事件失败:', error);
+                alert('删除事件失败');
+            }
+        }
+
+        // 保存事件
+        async function saveEvent() {
+            const form = document.getElementById('eventForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+            
+            const eventData = {
+                name: document.getElementById('event-name').value,
+                event_type: document.getElementById('event-type').value,
+                start_date: document.getElementById('start-date').value,
+                end_date: document.getElementById('end-date').value,
+                description: document.getElementById('event-description').value,
+                involves_china: document.getElementById('involves-china').checked,
+                countries: getTags('countries-tags'),
+                domains: getCheckboxes('domains-checkboxes'),
+                keywords: getTags('keywords-tags'),
+                focus_points: getCheckboxes('focus-checkboxes'),
+                scheduled_task_ids: getTasks()
+            };
+            
+            const eventId = document.getElementById('event-id').value;
+            const url = eventId ? `/api/events/${eventId}` : '/api/events';
+            const method = eventId ? 'PUT' : 'POST';
+            
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(eventData)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert(eventId ? '事件更新成功' : '事件创建成功');
+                    bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
+                    loadEvents();
+                } else {
+                    alert('操作失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('保存事件失败:', error);
+                alert('保存事件失败');
+            }
+        }
+
+        // 标签管理函数
+        function addCountry() {
+            const input = document.getElementById('country-input');
+            const value = input.value.trim();
+            if (value) {
+                addTag('countries-tags', value);
+                input.value = '';
+            }
+        }
+
+        function addKeyword() {
+            const input = document.getElementById('keyword-input');
+            const value = input.value.trim();
+            if (value) {
+                addTag('keywords-tags', value);
+                input.value = '';
+            }
+        }
+
+        function addTag(containerId, value) {
+            const container = document.getElementById(containerId);
+            const tag = document.createElement('span');
+            tag.className = 'tag';
+            tag.innerHTML = `
+                ${value}
+                <i class="fas fa-times ms-1" onclick="this.parentElement.remove()"></i>
+            `;
+            container.appendChild(tag);
+        }
+
+        function clearTags() {
+            document.getElementById('countries-tags').innerHTML = '';
+            document.getElementById('keywords-tags').innerHTML = '';
+        }
+
+        function setTags(containerId, tags) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            tags.forEach(tag => addTag(containerId, tag));
+        }
+
+        function getTags(containerId) {
+            const container = document.getElementById(containerId);
+            return Array.from(container.children).map(tag => tag.textContent.trim().replace('×', '').trim());
+        }
+
+        // 复选框管理函数
+        function setCheckboxes(containerId, values) {
+            const container = document.getElementById(containerId);
+            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = values.includes(checkbox.value);
+            });
+        }
+
+        function getCheckboxes(containerId) {
+            const container = document.getElementById(containerId);
+            return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        }
+
+        // 任务管理函数
+        function addTask() {
+            const select = document.getElementById('task-select');
+            const taskId = select.value;
+            if (!taskId) return;
+            
+            const task = scheduledTasks.find(t => t.id == taskId);
+            if (task) {
+                addTaskToList(task);
+                select.value = '';
+            }
+        }
+
+        function addTaskToList(task) {
+            const container = document.getElementById('tasks-list');
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+            taskDiv.innerHTML = `
+                <span>${task.task.query} (${task.schedule_type})</span>
+                <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+                <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+            `;
+            container.appendChild(taskDiv);
+        }
+
+        function clearTasks() {
+            document.getElementById('tasks-list').innerHTML = '';
+        }
+
+        function setTasks(tasks) {
+            clearTasks();
+            tasks.forEach(task => {
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+                taskDiv.innerHTML = `
+                    <span>${task.query} (${task.schedule_type})</span>
+                    <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+                `;
+                document.getElementById('tasks-list').appendChild(taskDiv);
+            });
+        }
+
+        function getTasks() {
+            const inputs = document.querySelectorAll('input[name="scheduled_task_ids"]');
+            return Array.from(inputs).map(input => parseInt(input.value));
+        }
+
+        // 搜索事件
+        function searchEvents() {
+            const nameFilter = document.getElementById('search-name').value.toLowerCase();
+            const typeFilter = document.getElementById('filter-type').value;
+            const domainFilter = document.getElementById('filter-domain').value;
+            const chinaFilter = document.getElementById('filter-china').value;
+            
+            const filteredEvents = events.filter(event => {
+                const nameMatch = !nameFilter || event.name.toLowerCase().includes(nameFilter);
+                const typeMatch = !typeFilter || event.event_type === typeFilter;
+                const domainMatch = !domainFilter || (event.domains && event.domains.includes(domainFilter));
+                const chinaMatch = chinaFilter === '' || event.involves_china.toString() === chinaFilter;
+                
+                return nameMatch && typeMatch && domainMatch && chinaMatch;
+            });
+            
+            renderFilteredEvents(filteredEvents);
+        }
+
+        function renderFilteredEvents(filteredEvents) {
+            const tbody = document.getElementById('events-table-body');
+            tbody.innerHTML = '';
+            
+            filteredEvents.forEach(event => {
+                // 使用相同的渲染逻辑
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>
+                        <strong>${event.name}</strong>
+                        <br><small class="text-muted">${event.description || '无描述'}</small>
+                    </td>
+                    <td><span class="badge bg-primary">${event.event_type}</span></td>
+                    <td>${renderTags(event.countries, 'country')}</td>
+                    <td>${renderTags(event.domains, 'domain')}</td>
+                    <td>${renderTags(event.keywords, 'tag')}</td>
+                    <td>${renderTags(event.focus_points, 'focus')}</td>
+                    <td>
+                        ${event.involves_china ? 
+                            '<span class="badge bg-danger">涉及中国</span>' : 
+                            '<span class="badge bg-secondary">不涉及</span>'
+                        }
+                    </td>
+                    <td>
+                        ${event.scheduled_tasks.length > 0 ? 
+                            `<span class="badge bg-success">${event.scheduled_tasks.length}个任务</span>` : 
+                            '<span class="badge bg-warning">无关联任务</span>'
+                        }
+                    </td>
+                    <td>
+                        ${formatDateRange(event.start_date, event.end_date)}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/api/auth/logout';
+            }
+        }
+    </script>
+</body>
+</html>

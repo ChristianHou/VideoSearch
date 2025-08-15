@@ -2,7 +2,15 @@
 
 import re
 import datetime
+from datetime import timezone, timedelta
 from typing import Optional
+
+# 东八区时区
+EAST_8_TZ = timezone(timedelta(hours=8))
+
+def get_east8_time():
+    """获取东八区当前时间"""
+    return datetime.datetime.now(EAST_8_TZ)
 
 
 def normalize_rfc3339_date(date_str: str, end_of_day: bool = False) -> str:

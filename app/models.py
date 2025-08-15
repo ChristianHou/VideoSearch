@@ -205,3 +205,39 @@ class AuthCredentials(Base):
         else:
             # 如果过期时间有时区信息，直接比较
             return current_time >= refresh_time
+
+
+class Event(Base):
+    """事件管理表"""
+    __tablename__ = 'events'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, comment='事件名称')
+    event_type = Column(String(50), nullable=False, comment='事件类型：国际会议或峰会、高级领导人访问、国际热点事件')
+    countries = Column(JSON, comment='涉及国家列表')
+    domains = Column(JSON, comment='涉及领域列表：政治、经济、科技、军事、文化等')
+    keywords = Column(JSON, comment='关键词列表：国家名称、领导人名称等')
+    focus_points = Column(JSON, comment='关注点列表：纪录片、领导人讲话、官方媒体视频资料')
+    involves_china = Column(Boolean, default=False, comment='是否直接涉及中国')
+    start_date = Column(DateTime, comment='开始日期')
+    end_date = Column(DateTime, comment='结束日期')
+    description = Column(Text, comment='事件描述')
+    created_at = Column(DateTime, default=get_east8_time)
+    updated_at = Column(DateTime, default=get_east8_time, onupdate=get_east8_time)
+    
+    # 关联定时任务
+    event_scheduled_tasks = relationship("EventScheduledTask", back_populates="event")
+
+
+class EventScheduledTask(Base):
+    """事件与定时任务的关联表"""
+    __tablename__ = 'event_scheduled_tasks'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    event_id = Column(Integer, ForeignKey('events.id'), nullable=False)
+    scheduled_task_id = Column(Integer, ForeignKey('scheduled_tasks.id'), nullable=False)
+    created_at = Column(DateTime, default=get_east8_time)
+    
+    # 关联关系
+    event = relationship("Event", back_populates="event_scheduled_tasks")
+    scheduled_task = relationship("ScheduledTask")

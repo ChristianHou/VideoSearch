@@ -9,6 +9,7 @@ from .routes.auth import auth_bp
 from .routes.tasks import tasks_bp
 from .routes.scheduled_tasks import scheduled_tasks_bp
 from .routes.utils import utils_bp
+from .routes.events import events_bp
 
 
 def create_app() -> Flask:
@@ -47,10 +48,16 @@ def create_app() -> Flask:
     app.register_blueprint(tasks_bp, url_prefix='/api')
     app.register_blueprint(scheduled_tasks_bp, url_prefix='/api')
     app.register_blueprint(utils_bp, url_prefix='/api')
+    app.register_blueprint(events_bp, url_prefix='/api')
 
     # 首页
     @app.route('/')
     def index():
         return render_template('index.html')
+    
+    # 事件管理页面
+    @app.route('/events')
+    def events():
+        return render_template('events.html')
 
     return app
