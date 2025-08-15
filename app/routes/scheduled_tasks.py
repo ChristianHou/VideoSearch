@@ -154,33 +154,61 @@ def toggle_scheduled_task(scheduled_task_id: int):
     """启用/禁用定时任务"""
     try:
         data = request.get_json() or {}
-        is_active = data.get('is_active', True)
+        print(f"toggle_scheduled_task 被调用，任务ID: {scheduled_task_id}, 请求数据: {data}")
+        
+        # 兼容两种字段名：status 和 is_active
+        status = data.get('status')
+        is_active = data.get('is_active')
+        
+        # 如果收到status字段，转换为is_active
+        if status is not None:
+            is_active = (status == 'active')
+            print(f"从status字段转换: {status} -> is_active: {is_active}")
+        elif is_active is None:
+            # 默认启用
+            is_active = True
+            print(f"使用默认值: is_active: {is_active}")
+        
+        print(f"最终状态: is_active = {is_active}")
         
         db = db_manager.get_session()
         scheduled_task = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task_id).first()
         
         if not scheduled_task:
+            print(f"定时任务 {scheduled_task_id} 不存在")
             return jsonify({"error": "定时任务不存在"}), 404
         
+        print(f"找到定时任务: {scheduled_task.id}, 当前状态: is_active = {scheduled_task.is_active}")
+        
+        # 更新状态
         scheduled_task.is_active = is_active
+        print(f"更新后状态: is_active = {scheduled_task.is_active}")
         
         if is_active:
             # 重新计算下次执行时间并添加到调度器
             scheduled_task.next_run = _calculate_next_run(scheduled_task)
+            print(f"计算下次执行时间: {scheduled_task.next_run}")
             task_scheduler.add_scheduled_task(scheduled_task)
+            print(f"定时任务 {scheduled_task_id} 已添加到调度器")
         else:
             # 从调度器移除
             task_scheduler.remove_scheduled_task(scheduled_task_id)
+            print(f"定时任务 {scheduled_task_id} 已从调度器移除")
         
         db.commit()
+        print(f"数据库更改已提交")
+        
+        result = _scheduled_task_to_dict(scheduled_task)
+        print(f"返回结果: {result}")
         
         return jsonify({
             "success": True, 
             "message": f"定时任务已{'启用' if is_active else '禁用'}",
-            "scheduled_task": _scheduled_task_to_dict(scheduled_task)
+            "scheduled_task": result
         })
         
     except Exception as e:
+        print(f"切换定时任务状态时出错: {str(e)}")
         if 'db' in locals():
             db.rollback()
         return jsonify({"error": f"切换定时任务状态失败: {str(e)}"}), 500
@@ -326,6 +354,7 @@ def _scheduled_task_to_dict(scheduled_task: ScheduledTask) -> dict:
         'schedule_days': scheduled_task.schedule_days,
         'schedule_date': scheduled_task.schedule_date,
         'is_active': scheduled_task.is_active,
+        'status': 'active' if scheduled_task.is_active else 'inactive',  # 添加status字段以兼容前端
         'next_run': scheduled_task.next_run.isoformat() if scheduled_task.next_run else None,
         'created_at': scheduled_task.created_at.isoformat() if scheduled_task.created_at else None,
         'updated_at': scheduled_task.updated_at.isoformat() if scheduled_task.updated_at else None
@@ -387,3 +416,185 @@ def _calculate_next_run(scheduled_task: ScheduledTask) -> datetime:
         return next_month
     
     return now + timedelta(hours=1)  # 默认1小时后
+
+
+@scheduled_tasks_bp.route('/scheduled-tasks/<int:scheduled_task_id>/bind-event', methods=['POST'])
+def bind_event_to_task(scheduled_task_id):
+    """绑定事件到定时任务"""
+    try:
+        data = request.get_json()
+        event_id = data.get('event_id')
+        
+        if not event_id:
+            return jsonify({'success': False, 'error': '缺少事件ID'})
+        
+        db = db_manager.get_session()
+        
+        # 检查定时任务是否存在
+        scheduled_task = db.query(ScheduledTask).filter_by(id=scheduled_task_id).first()
+        if not scheduled_task:
+            return jsonify({'success': False, 'error': '定时任务不存在'})
+        
+        # 检查事件是否存在
+        from ..models import Event, EventScheduledTask
+        event = db.query(Event).filter_by(id=event_id).first()
+        if not event:
+            return jsonify({'success': False, 'error': '事件不存在'})
+        
+        # 检查是否已经绑定
+        existing_binding = db.query(EventScheduledTask).filter_by(
+            event_id=event_id,
+            scheduled_task_id=scheduled_task_id
+        ).first()
+        
+        if existing_binding:
+            return jsonify({'success': False, 'error': '该事件已经绑定到此任务'})
+        
+        # 创建绑定关系
+        event_task_binding = EventScheduledTask(
+            event_id=event_id,
+            scheduled_task_id=scheduled_task_id
+        )
+        
+        db.add(event_task_binding)
+        db.commit()
+        
+        return jsonify({'success': True, 'message': '事件绑定成功'})
+    except Exception as e:
+        if 'db' in locals():
+            db.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
+@scheduled_tasks_bp.route('/scheduled-tasks/<int:scheduled_task_id>/unbind-event', methods=['DELETE'])
+def unbind_event_from_task(scheduled_task_id):
+    """从定时任务解绑事件"""
+    try:
+        db = db_manager.get_session()
+        
+        # 查找并删除绑定关系
+        from ..models import EventScheduledTask
+        binding = db.query(EventScheduledTask).filter_by(
+            scheduled_task_id=scheduled_task_id
+        ).first()
+        
+        if not binding:
+            return jsonify({'success': False, 'error': '未找到事件绑定关系'})
+        
+        db.delete(binding)
+        db.commit()
+        
+        return jsonify({'success': True, 'message': '事件解绑成功'})
+    except Exception as e:
+        if 'db' in locals():
+            db.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
+@scheduled_tasks_bp.route('/scheduled-tasks/<int:scheduled_task_id>/event-binding', methods=['GET'])
+def get_task_event_binding(scheduled_task_id):
+    """获取定时任务的事件绑定信息"""
+    try:
+        db = db_manager.get_session()
+        
+        # 查找绑定关系
+        from ..models import Event, EventScheduledTask
+        binding = db.query(EventScheduledTask).filter_by(
+            scheduled_task_id=scheduled_task_id
+        ).first()
+        
+        if not binding:
+            return jsonify({'success': True, 'event': None})
+        
+        # 获取事件信息
+        event = db.query(Event).filter_by(id=binding.event_id).first()
+        if not event:
+            return jsonify({'success': True, 'event': None})
+        
+        event_data = {
+            'id': event.id,
+            'name': event.name,
+            'description': event.description,
+            'countries': event.countries,
+            'domains': event.domains,
+            'keywords': event.keywords,
+            'focus_points': event.focus_points,
+            'involves_china': event.involves_china,
+            'start_date': event.start_date.isoformat() if event.start_date else None,
+            'end_date': event.end_date.isoformat() if event.end_date else None
+        }
+        
+        return jsonify({
+            'success': True,
+            'event': event_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        if 'db' in locals():
+            db.close()
+
+
+@scheduled_tasks_bp.route('/scheduled-tasks/<int:scheduled_task_id>/execution-history', methods=['GET'])
+def get_task_execution_history(scheduled_task_id):
+    """获取定时任务的执行历史"""
+    try:
+        db = db_manager.get_session()
+        print(f"获取定时任务 {scheduled_task_id} 的执行历史")
+        
+        # 检查定时任务是否存在
+        scheduled_task = db.query(ScheduledTask).filter_by(id=scheduled_task_id).first()
+        if not scheduled_task:
+            print(f"定时任务 {scheduled_task_id} 不存在")
+            return jsonify({'success': False, 'error': '定时任务不存在'})
+        
+        print(f"找到定时任务: {scheduled_task.id}")
+        
+        # 查询执行历史 - 使用正确的字段名
+        execution_results = db.query(ScheduledExecutionResult).filter_by(
+            scheduled_task_id=scheduled_task_id
+        ).order_by(ScheduledExecutionResult.started_at.desc()).all()
+        
+        print(f"找到 {len(execution_results)} 个执行记录")
+        
+        execution_history = []
+        for result in execution_results:
+            print(f"处理执行记录: {result.id}, 状态: {result.status}")
+            
+            # 统计视频数量 - 使用正确的字段名
+            from ..models import VideoExecutionResult
+            video_count = db.query(VideoExecutionResult).filter_by(
+                scheduled_execution_result_id=result.id
+            ).count()
+            
+            print(f"执行记录 {result.id} 的视频数量: {video_count}")
+            
+            execution_history.append({
+                'id': result.id,
+                'execution_time': result.started_at.isoformat() if result.started_at else None,  # 使用started_at
+                'status': result.status,
+                'video_count': video_count,
+                'error_message': result.error_message
+            })
+        
+        print(f"返回执行历史: {len(execution_history)} 条记录")
+        
+        return jsonify({
+            'success': True,
+            'execution_history': execution_history
+        })
+        
+    except Exception as e:
+        print(f"获取执行历史失败: {str(e)}")
+        if 'db' in locals():
+            db.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+    finally:
+        if 'db' in locals():
+            db.close()

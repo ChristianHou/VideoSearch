@@ -33,8 +33,8 @@ class DatabaseManager:
         # 创建会话工厂
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         
-        # 创建全局会话
-        self.db_session = scoped_session(self.SessionLocal)
+        # 创建全局会话 - 移除scoped_session，改为每次创建新会话
+        # self.db_session = scoped_session(self.SessionLocal)
         
         # 创建所有表
         Base.metadata.create_all(bind=self.engine)
@@ -43,19 +43,23 @@ class DatabaseManager:
     
     def get_session(self):
         """获取数据库会话"""
-        if self.db_session is None:
+        if self.SessionLocal is None:
             raise RuntimeError("数据库未初始化，请先调用 init_database()")
-        return self.db_session
+        
+        # 每次返回新的会话，避免多线程问题
+        session = self.SessionLocal()
+        print(f"创建新的数据库会话: {id(session)}")
+        return session
     
     def close_session(self):
-        """关闭数据库会话"""
-        if self.db_session:
-            self.db_session.remove()
+        """关闭数据库会话 - 已废弃，请直接调用session.close()"""
+        print("警告: close_session() 已废弃，请直接调用 session.close()")
     
     def close(self):
         """关闭数据库连接"""
         if self.engine:
             self.engine.dispose()
+            print("数据库引擎已关闭")
 
 
 # 全局数据库管理器实例

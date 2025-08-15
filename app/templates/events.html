@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>事件管理系统</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -385,9 +388,20 @@
             padding: 4px 8px;
             font-weight: 400;
         }
+
+        /* 添加版本号到CSS中 */
+        .version-info::after {
+            content: "v2025.08.15.01";
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: #999;
+            z-index: 9999;
+        }
     </style>
 </head>
-<body>
+<body class="version-info">
     <!-- 顶部导航栏 -->
     <nav class="navbar navbar-expand-lg navbar-light bg-gradient mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
         <div class="container-fluid">
@@ -654,14 +668,26 @@
 
                         <div class="mb-3">
                             <label class="form-label">关联定时任务</label>
-                            <div class="input-group">
-                                <select class="form-select" id="task-select">
-                                    <option value="">选择定时任务</option>
-                                </select>
-                                <button class="btn btn-outline-secondary" type="button" onclick="addTask()">
-                                    <i class="fas fa-plus"></i>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">已关联的定时任务</span>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="showCreateTaskModal()">
+                                    <i class="fas fa-plus me-1"></i>创建定时任务
                                 </button>
                             </div>
+                            
+                            <!-- 选择现有定时任务 -->
+                            <div class="mb-3">
+                                <div class="input-group">
+                                    <select class="form-select" id="task-select">
+                                        <option value="">选择现有定时任务</option>
+                                    </select>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="addExistingTask()">
+                                        <i class="fas fa-plus"></i>添加
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已关联的任务列表 -->
                             <div id="tasks-list" class="mt-2"></div>
                         </div>
                     </form>
@@ -692,145 +718,219 @@
         </div>
     </div>
 
-    <!-- 创建/编辑事件模态框 -->
-    <div class="modal fade" id="eventModal" tabindex="-1">
+    <!-- 创建定时任务模态框 -->
+    <div class="modal fade" id="createTaskModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="eventModalTitle">新建事件</h5>
+                    <h5 class="modal-title">创建定时任务</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="eventForm">
-                        <input type="hidden" id="event-id">
+                    <form id="createTaskForm">
+                        <!-- 搜索任务参数 -->
+                        <h6 class="mb-3">搜索任务参数</h6>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="event-name" class="form-label">事件名称 *</label>
-                                    <input type="text" class="form-control" id="event-name" required>
+                                    <label for="task-query" class="form-label">搜索关键词 *</label>
+                                    <input type="text" class="form-control" id="task-query" name="query" required>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="event-type" class="form-label">事件类型 *</label>
-                                    <select class="form-select" id="event-type" required>
-                                        <option value="">请选择事件类型</option>
+                                    <label for="task-max-results" class="form-label">最大结果数</label>
+                                    <input type="number" class="form-control" id="task-max-results" name="max_results" min="1" max="50" value="25">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="task-region" class="form-label">地区</label>
+                                    <select class="form-select" id="task-region" name="region_code">
+                                        <option value="">请选择地区</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="task-language" class="form-label">语言</label>
+                                    <select class="form-select" id="task-language" name="relevance_language">
+                                        <option value="">请选择语言</option>
                                     </select>
                                 </div>
                             </div>
-                        </div>
-                        
-                        <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="start-date" class="form-label">开始日期</label>
-                                    <input type="datetime-local" class="form-control" id="start-date">
+                                    <label for="task-video-duration" class="form-label">视频时长</label>
+                                    <select class="form-select" id="task-video-duration" name="video_duration">
+                                        <option value="">任意时长</option>
+                                        <option value="short">短于4分钟</option>
+                                        <option value="medium">4-20分钟</option>
+                                        <option value="long">长于20分钟</option>
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="end-date" class="form-label">结束日期</label>
-                                    <input type="datetime-local" class="form-control" id="end-date">
+                                    <label for="task-video-definition" class="form-label">视频质量</label>
+                                    <select class="form-select" id="task-video-definition" name="video_definition">
+                                        <option value="">任意质量</option>
+                                        <option value="high">高清</option>
+                                        <option value="standard">标清</option>
+                                    </select>
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">涉及国家</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" id="country-input" placeholder="输入国家名称">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="addCountry()">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                    <div id="countries-tags" class="mt-2"></div>
+                                    <label for="task-video-type" class="form-label">视频类型</label>
+                                    <select class="form-select" id="task-video-type" name="video_type">
+                                        <option value="">任意类型</option>
+                                        <option value="movie">电影</option>
+                                        <option value="episode">剧集</option>
+                                        <option value="any">任意</option>
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">涉及领域</label>
-                                    <div id="domains-checkboxes" class="mt-2"></div>
+                                    <label for="task-published-after" class="form-label">发布时间（之后）</label>
+                                    <input type="datetime-local" class="form-control" id="task-published-after" name="published_after">
                                 </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label class="form-label">关键词</label>
-                                    <div class="input-group">
-                                        <input type="text" class="form-control" id="keyword-input" placeholder="输入关键词">
-                                        <button class="btn btn-outline-secondary" type="button" onclick="addKeyword()">
-                                            <i class="fas fa-plus"></i>
-                                        </button>
-                                    </div>
-                                    <div id="keywords-tags" class="mt-2"></div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label class="form-label">关注点</label>
-                                    <div id="focus-checkboxes" class="mt-2"></div>
+                                    <label for="task-published-before" class="form-label">发布时间（之前）</label>
+                                    <input type="datetime-local" class="form-control" id="task-published-before" name="published_before">
                                 </div>
                             </div>
                         </div>
 
+                        <hr class="my-4">
+
+                        <!-- 定时任务参数 -->
+                        <h6 class="mb-3">定时任务参数</h6>
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="involves-china">
-                                        <label class="form-check-label" for="involves-china">
-                                            是否直接涉及中国
-                                        </label>
+                                    <label for="task-schedule-type" class="form-label">定时类型 *</label>
+                                    <select class="form-select" id="task-schedule-type" name="schedule_type" required onchange="toggleScheduleFields()">
+                                        <option value="">请选择定时类型</option>
+                                        <option value="interval">间隔执行</option>
+                                        <option value="daily">每日执行</option>
+                                        <option value="weekly">每周执行</option>
+                                        <option value="monthly">每月执行</option>
+                                    </select>
+                                </div>
+                                
+                                <!-- 间隔执行字段 -->
+                                <div id="intervalFields" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="task-interval-minutes" class="form-label">间隔分钟数 *</label>
+                                        <input type="number" class="form-control" id="task-interval-minutes" name="interval_minutes" min="1" value="60">
                                     </div>
                                 </div>
+                                
+                                <!-- 每日/每周/每月执行字段 -->
+                                <div id="timeFields" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="task-schedule-time" class="form-label">执行时间 *</label>
+                                        <input type="time" class="form-control" id="task-schedule-time" name="schedule_time" value="09:00">
+                                    </div>
+                                </div>
+                                
+                                <!-- 每周执行字段 -->
+                                <div id="weeklyFields" style="display: none;">
+                                    <div class="mb-3">
+                                        <label class="form-label">执行日期 *</label>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="1" id="task-monday">
+                                            <label class="form-check-label" for="task-monday">周一</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="2" id="task-tuesday">
+                                            <label class="form-check-label" for="task-tuesday">周二</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="3" id="task-wednesday">
+                                            <label class="form-check-label" for="task-wednesday">周三</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="4" id="task-thursday">
+                                            <label class="form-check-label" for="task-thursday">周四</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="5" id="task-friday">
+                                            <label class="form-check-label" for="task-friday">周五</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="6" id="task-saturday">
+                                            <label class="form-check-label" for="task-saturday">周六</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="schedule_days" value="7" id="task-sunday">
+                                            <label class="form-check-label" for="task-sunday">周日</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 每月执行字段 -->
+                                <div id="monthlyFields" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="task-schedule-date" class="form-label">每月第几天执行 *</label>
+                                        <input type="number" class="form-control" id="task-schedule-date" name="schedule_date" min="1" max="31" value="1">
+                                    </div>
+                                </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="event-description" class="form-label">事件描述</label>
-                                    <textarea class="form-control" id="event-description" rows="3"></textarea>
+                                    <label for="task-description" class="form-label">任务描述</label>
+                                    <textarea class="form-control" id="task-description" name="description" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="task-start-date" class="form-label">任务开始日期</label>
+                                    <input type="datetime-local" class="form-control" id="task-start-date" name="start_date">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="task-end-date" class="form-label">任务结束日期</label>
+                                    <input type="datetime-local" class="form-control" id="task-end-date" name="end_date">
                                 </div>
                             </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label">关联定时任务</label>
-                            <div class="input-group">
-                                <select class="form-select" id="task-select">
-                                    <option value="">选择定时任务</option>
-                                </select>
-                                <button class="btn btn-outline-secondary" type="button" onclick="addTask()">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                            </div>
-                            <div id="tasks-list" class="mt-2"></div>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" onclick="saveEvent()">保存</button>
+                    <button type="button" class="btn btn-primary" onclick="saveTask()">创建任务</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 事件详情模态框 -->
-    <div class="modal fade" id="eventDetailModal" tabindex="-1">
+    <!-- 任务详情模态框 -->
+    <div class="modal fade" id="taskDetailModal" tabindex="-1">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">事件详情</h5>
+                    <h5 class="modal-title">任务详情</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body" id="event-detail-content">
-                    <!-- 事件详情将在这里显示 -->
+                <div class="modal-body" id="task-detail-content">
+                    <!-- 任务详情将在这里显示 -->
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频列表模态框 -->
+    <div class="modal fade" id="videoListModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">执行结果视频列表</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="video-list-content">
+                    <!-- 视频列表将在这里显示 -->
+                </div>
+                <div class="modal-footer">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                        <div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleBilingualDisplay()">
+                                <i class="fas fa-language me-1"></i>
+                                <span id="bilingual-toggle-text">显示双语</span>
+                            </button>
+                        </div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -844,12 +944,51 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== 事件管理页面开始初始化 ===');
+            console.log('当前时间:', new Date().toISOString());
+            console.log('页面URL:', window.location.href);
+            console.log('Bootstrap版本:', typeof bootstrap !== 'undefined' ? '已加载' : '未加载');
+            console.log('页面版本: v2025.08.15.01');
+            
+            // 强制刷新缓存
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                    for(let registration of registrations) {
+                        registration.unregister();
+                    }
+                });
+            }
+            
+            // 验证API路径
+            const testApiUrl = '/api/scheduled-tasks/executions/1/videos';
+            console.log('测试API路径:', testApiUrl);
+            console.log('完整测试URL:', window.location.origin + testApiUrl);
+            
+            // 强制清除可能的缓存
+            if ('caches' in window) {
+                caches.keys().then(function(names) {
+                    for (let name of names) {
+                        caches.delete(name);
+                    }
+                });
+            }
+            
             loadEventTypes();
             loadDomains();
             loadFocusPoints();
+            loadRegions(); // 加载地区数据
+            loadLanguages(); // 加载语言数据
             loadScheduledTasks();
             loadEvents();
             checkCredentialStatus();
+            
+            // 添加事件模态框关闭时的清理逻辑
+            document.getElementById('eventModal').addEventListener('hidden.bs.modal', function () {
+                // 清理定时任务模态框中存储的事件ID
+                document.getElementById('createTaskModal').removeAttribute('data-current-event-id');
+            });
+            
+            console.log('=== 事件管理页面初始化完成 ===');
         });
 
         // 加载事件类型
@@ -922,23 +1061,82 @@
             }
         }
 
+        // 加载地区数据
+        async function loadRegions() {
+            try {
+                const response = await fetch('/api/regions');
+                const data = await response.json();
+                if (data.success) {
+                    const regionSelect = document.getElementById('task-region');
+                    regionSelect.innerHTML = '<option value="">请选择地区</option>';
+                    
+                    data.regions.forEach(region => {
+                        regionSelect.add(new Option(region.name, region.code));
+                    });
+                }
+            } catch (error) {
+                console.error('加载地区失败:', error);
+            }
+        }
+
+        // 加载语言数据
+        async function loadLanguages() {
+            try {
+                const response = await fetch('/api/languages');
+                const data = await response.json();
+                if (data.success) {
+                    const languageSelect = document.getElementById('task-language');
+                    languageSelect.innerHTML = '<option value="">请选择语言</option>';
+                    
+                    data.languages.forEach(language => {
+                        languageSelect.add(new Option(language.name, language.code));
+                    });
+                }
+            } catch (error) {
+                console.error('加载语言失败:', error);
+            }
+        }
+
         // 加载定时任务
         async function loadScheduledTasks() {
+            console.log('loadScheduledTasks 开始执行');
             try {
                 const response = await fetch('/api/scheduled-tasks');
                 const data = await response.json();
+                console.log('定时任务API响应:', data);
+                
                 if (data.success) {
                     scheduledTasks = data.scheduled_tasks;
-                    const taskSelect = document.getElementById('task-select');
-                    taskSelect.innerHTML = '<option value="">选择定时任务</option>';
+                    console.log('全局scheduledTasks已更新，数量:', scheduledTasks.length);
                     
-                    scheduledTasks.forEach(task => {
-                        const option = new Option(
-                            `${task.task.query} (${task.schedule_type})`, 
-                            task.id
-                        );
-                        taskSelect.appendChild(option);
+                    // 打印每个任务的详细信息
+                    scheduledTasks.forEach((task, index) => {
+                        console.log(`任务 ${index + 1}:`, {
+                            id: task.id,
+                            status: task.status,
+                            is_active: task.is_active,
+                            schedule_type: task.schedule_type,
+                            query: task.task?.query || 'N/A'
+                        });
                     });
+                    
+                    const taskSelect = document.getElementById('task-select');
+                    if (taskSelect) {
+                        taskSelect.innerHTML = '<option value="">选择定时任务</option>';
+                        
+                        scheduledTasks.forEach(task => {
+                            const option = new Option(
+                                `${task.task.query} (${task.schedule_type})`, 
+                                task.id
+                            );
+                            taskSelect.appendChild(option);
+                        });
+                        console.log('任务选择下拉框已更新，选项数量:', taskSelect.children.length);
+                    } else {
+                        console.warn('找不到任务选择下拉框元素');
+                    }
+                } else {
+                    console.error('加载定时任务失败:', data.error);
                 }
             } catch (error) {
                 console.error('加载定时任务失败:', error);
@@ -1075,361 +1273,11 @@
             document.getElementById('monthly-events').textContent = monthlyEvents;
         }
 
-        // 显示创建事件模态框
-        function showCreateEventModal() {
-            document.getElementById('eventModalTitle').textContent = '新建事件';
-            document.getElementById('eventForm').reset();
-            document.getElementById('event-id').value = '';
-            clearTags();
-            clearTasks();
-            
-            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-            modal.show();
-        }
-
-        // 编辑事件
-        function editEvent(eventId) {
-            const event = events.find(e => e.id === eventId);
-            if (!event) return;
-            
-            document.getElementById('eventModalTitle').textContent = '编辑事件';
-            document.getElementById('event-id').value = event.id;
-            document.getElementById('event-name').value = event.name;
-            document.getElementById('event-type').value = event.event_type;
-            document.getElementById('start-date').value = event.start_date ? event.start_date.slice(0, 16) : '';
-            document.getElementById('end-date').value = event.end_date ? event.end_date.slice(0, 16) : '';
-            document.getElementById('event-description').value = event.description || '';
-            document.getElementById('involves-china').checked = event.involves_china;
-            
-            // 设置标签
-            setTags('countries-tags', event.countries || []);
-            setTags('keywords-tags', event.keywords || []);
-            
-            // 设置复选框
-            setCheckboxes('domains-checkboxes', event.domains || []);
-            setCheckboxes('focus-checkboxes', event.focus_points || []);
-            
-            // 设置关联任务
-            setTasks(event.scheduled_tasks || []);
-            
-            const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-            modal.show();
-        }
-
-        // 查看事件详情
-        function viewEvent(eventId) {
-            const event = events.find(e => e.id === eventId);
-            if (!event) return;
-            
-            const content = document.getElementById('event-detail-content');
-            content.innerHTML = `
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6>基本信息</h6>
-                        <p><strong>事件名称:</strong> ${event.name}</p>
-                        <p><strong>事件类型:</strong> <span class="badge bg-primary">${event.event_type}</span></p>
-                        <p><strong>涉及中国:</strong> ${event.involves_china ? '是' : '否'}</p>
-                        <p><strong>开始日期:</strong> ${event.start_date ? new Date(event.start_date).toLocaleString('zh-CN') : '未设置'}</p>
-                        <p><strong>结束日期:</strong> ${event.end_date ? new Date(event.end_date).toLocaleString('zh-CN') : '未设置'}</p>
-                        <p><strong>描述:</strong> ${event.description || '无描述'}</p>
-                    </div>
-                    <div class="col-md-6">
-                        <h6>详细信息</h6>
-                        <p><strong>涉及国家:</strong> ${renderTags(event.countries, 'country')}</p>
-                        <p><strong>涉及领域:</strong> ${renderTags(event.domains, 'domain')}</p>
-                        <p><strong>关键词:</strong> ${renderTags(event.keywords, 'tag')}</p>
-                        <p><strong>关注点:</strong> ${renderTags(event.focus_points, 'focus')}</p>
-                        <p><strong>关联任务:</strong> ${event.scheduled_tasks.length > 0 ? 
-                            event.scheduled_tasks.map(task => `<span class="badge bg-success">${task.query}</span>`).join(' ') : 
-                            '无关联任务'}</p>
-                    </div>
-                </div>
-            `;
-            
-            const modal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
-            modal.show();
-        }
-
-        // 删除事件
-        async function deleteEvent(eventId) {
-            if (!confirm('确定要删除这个事件吗？此操作不可恢复。')) {
-                return;
+        // 退出登录
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/api/auth/logout';
             }
-            
-            try {
-                const response = await fetch(`/api/events/${eventId}`, {
-                    method: 'DELETE'
-                });
-                const data = await response.json();
-                
-                if (data.success) {
-                    alert('事件删除成功');
-                    loadEvents();
-                } else {
-                    alert('删除失败: ' + data.error);
-                }
-            } catch (error) {
-                console.error('删除事件失败:', error);
-                alert('删除事件失败');
-            }
-        }
-
-        // 保存事件
-        async function saveEvent() {
-            const form = document.getElementById('eventForm');
-            if (!form.checkValidity()) {
-                form.reportValidity();
-                return;
-            }
-            
-            const eventData = {
-                name: document.getElementById('event-name').value,
-                event_type: document.getElementById('event-type').value,
-                start_date: document.getElementById('start-date').value,
-                end_date: document.getElementById('end-date').value,
-                description: document.getElementById('event-description').value,
-                involves_china: document.getElementById('involves-china').checked,
-                countries: getTags('countries-tags'),
-                domains: getCheckboxes('domains-checkboxes'),
-                keywords: getTags('keywords-tags'),
-                focus_points: getCheckboxes('focus-checkboxes'),
-                scheduled_task_ids: getTasks()
-            };
-            
-            const eventId = document.getElementById('event-id').value;
-            const url = eventId ? `/api/events/${eventId}` : '/api/events';
-            const method = eventId ? 'PUT' : 'POST';
-            
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(eventData)
-                });
-                
-                const data = await response.json();
-                if (data.success) {
-                    alert(eventId ? '事件更新成功' : '事件创建成功');
-                    bootstrap.Modal.getInstance(document.getElementById('eventModal')).hide();
-                    loadEvents();
-                } else {
-                    alert('操作失败: ' + data.error);
-                }
-            } catch (error) {
-                console.error('保存事件失败:', error);
-                alert('保存事件失败');
-            }
-        }
-
-        // 标签管理函数
-        function addCountry() {
-            const input = document.getElementById('country-input');
-            const value = input.value.trim();
-            if (value) {
-                addTag('countries-tags', value);
-                input.value = '';
-            }
-        }
-
-        function addKeyword() {
-            const input = document.getElementById('keyword-input');
-            const value = input.value.trim();
-            if (value) {
-                addTag('keywords-tags', value);
-                input.value = '';
-            }
-        }
-
-        function addTag(containerId, value) {
-            const container = document.getElementById(containerId);
-            const tag = document.createElement('span');
-            tag.className = 'tag';
-            tag.innerHTML = `
-                ${value}
-                <i class="fas fa-times ms-1" onclick="this.parentElement.remove()"></i>
-            `;
-            container.appendChild(tag);
-        }
-
-        function clearTags() {
-            document.getElementById('countries-tags').innerHTML = '';
-            document.getElementById('keywords-tags').innerHTML = '';
-        }
-
-        function setTags(containerId, tags) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = '';
-            tags.forEach(tag => addTag(containerId, tag));
-        }
-
-        function getTags(containerId) {
-            const container = document.getElementById(containerId);
-            return Array.from(container.children).map(tag => tag.textContent.trim().replace('×', '').trim());
-        }
-
-        // 复选框管理函数
-        function setCheckboxes(containerId, values) {
-            const container = document.getElementById(containerId);
-            container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                checkbox.checked = values.includes(checkbox.value);
-            });
-        }
-
-        function getCheckboxes(containerId) {
-            const container = document.getElementById(containerId);
-            return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-        }
-
-        // 任务管理函数
-        function addTask() {
-            const select = document.getElementById('task-select');
-            const taskId = select.value;
-            if (!taskId) return;
-            
-            const task = scheduledTasks.find(t => t.id == taskId);
-            if (task) {
-                addTaskToList(task);
-                select.value = '';
-            }
-        }
-
-        function addTaskToList(task) {
-            const container = document.getElementById('tasks-list');
-            const taskDiv = document.createElement('div');
-            taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
-            taskDiv.innerHTML = `
-                <span>${task.task.query} (${task.schedule_type})</span>
-                <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-                <input type="hidden" name="scheduled_task_ids" value="${task.id}">
-            `;
-            container.appendChild(taskDiv);
-        }
-
-        function clearTasks() {
-            document.getElementById('tasks-list').innerHTML = '';
-        }
-
-        function setTasks(tasks) {
-            clearTasks();
-            tasks.forEach(task => {
-                const taskDiv = document.createElement('div');
-                taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
-                taskDiv.innerHTML = `
-                    <span>${task.query} (${task.schedule_type})</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    <input type="hidden" name="scheduled_task_ids" value="${task.id}">
-                `;
-                document.getElementById('tasks-list').appendChild(taskDiv);
-            });
-        }
-
-        function getTasks() {
-            const inputs = document.querySelectorAll('input[name="scheduled_task_ids"]');
-            return Array.from(inputs).map(input => parseInt(input.value));
-        }
-
-        // 搜索事件
-        function searchEvents() {
-            const nameFilter = document.getElementById('search-name').value.toLowerCase();
-            const typeFilter = document.getElementById('filter-type').value;
-            const domainFilter = document.getElementById('filter-domain').value;
-            const chinaFilter = document.getElementById('filter-china').value;
-            
-            const filteredEvents = events.filter(event => {
-                const nameMatch = !nameFilter || event.name.toLowerCase().includes(nameFilter);
-                const typeMatch = !typeFilter || event.event_type === typeFilter;
-                const domainMatch = !domainFilter || (event.domains && event.domains.includes(domainFilter));
-                const chinaMatch = chinaFilter === '' || event.involves_china.toString() === chinaFilter;
-                
-                return nameMatch && typeMatch && domainMatch && chinaMatch;
-            });
-            
-            renderFilteredEvents(filteredEvents);
-        }
-
-        function renderFilteredEvents(filteredEvents) {
-            const tbody = document.getElementById('events-table-body');
-            const emptyState = document.getElementById('empty-state');
-            const eventsCount = document.getElementById('events-count');
-            
-            // 更新事件计数
-            eventsCount.textContent = `${filteredEvents.length} 个事件`;
-            
-            if (filteredEvents.length === 0) {
-                tbody.innerHTML = '';
-                emptyState.style.display = 'block';
-                emptyState.innerHTML = `
-                    <i class="fas fa-search"></i>
-                    <h5>未找到匹配的事件</h5>
-                    <p>请尝试调整搜索条件或创建新事件</p>
-                `;
-                return;
-            }
-            
-            emptyState.style.display = 'none';
-            tbody.innerHTML = '';
-            
-            filteredEvents.forEach(event => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="event-name-cell">
-                        <div class="event-title">${event.name}</div>
-                        <div class="event-description">${event.description || '暂无描述'}</div>
-                    </td>
-                    <td>
-                        <span class="badge bg-primary">${event.event_type}</span>
-                    </td>
-                    <td>
-                        ${renderTags(event.countries, 'country')}
-                    </td>
-                    <td>
-                        ${renderTags(event.domains, 'domain')}
-                    </td>
-                    <td>
-                        ${renderTags(event.keywords, 'tag')}
-                    </td>
-                    <td>
-                        ${renderTags(event.focus_points, 'focus')}
-                    </td>
-                    <td>
-                        ${event.involves_china ? 
-                            '<span class="badge bg-danger"><i class="fas fa-flag me-1"></i>涉及中国</span>' : 
-                            '<span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>不涉及</span>'
-                        }
-                    </td>
-                    <td>
-                        ${event.scheduled_tasks.length > 0 ? 
-                            `<span class="badge bg-success"><i class="fas fa-tasks me-1"></i>${event.scheduled_tasks.length}个任务</span>` : 
-                            '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>无关联任务</span>'
-                        }
-                    </td>
-                    <td>
-                        <div class="text-muted">
-                            ${formatDateRange(event.start_date, event.end_date)}
-                        </div>
-                    </td>
-                    <td>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})" title="查看详情">
-                                <i class="fas fa-eye"></i>
-                            </button>
-                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})" title="编辑事件">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})" title="删除事件">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(row);
-            });
         }
 
         // 认证状态检查
@@ -1658,30 +1506,110 @@
         }
 
         // 任务管理函数
-        function addTask() {
+        function addExistingTask() {
             const select = document.getElementById('task-select');
             const taskId = select.value;
             if (!taskId) return;
             
             const task = scheduledTasks.find(t => t.id == taskId);
             if (task) {
+                // 检查任务是否已经关联
+                const existingTasks = getTasks();
+                if (existingTasks.includes(task.id)) {
+                    alert('该定时任务已经关联到此事件！');
+                    return;
+                }
+                
                 addTaskToList(task);
                 select.value = '';
             }
         }
 
         function addTaskToList(task) {
+            console.log('addTaskToList 被调用，任务对象:', task);
+            console.log('全局scheduledTasks:', scheduledTasks);
+            
             const container = document.getElementById('tasks-list');
             const taskDiv = document.createElement('div');
             taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+            
+            // 获取完整的任务信息
+            const fullTask = scheduledTasks.find(t => t.id == task.id) || task;
+            console.log('找到的完整任务信息:', fullTask);
+            
+            // 确定任务状态 - 兼容不同的状态字段名
+            const taskStatus = fullTask.status || fullTask.is_active;
+            const isActive = taskStatus === 'active' || taskStatus === true;
+            console.log('任务状态解析:', { taskStatus, isActive, fullTaskStatus: fullTask.status, fullTaskIsActive: fullTask.is_active });
+            
             taskDiv.innerHTML = `
-                <span>${task.task.query} (${task.schedule_type})</span>
-                <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
-                    <i class="fas fa-times"></i>
-                </button>
-                <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+                <div class="d-flex align-items-center">
+                    <span class="me-2">${fullTask.task ? fullTask.task.query : fullTask.query} (${fullTask.schedule_type})</span>
+                    <span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? '启用' : '禁用'}</span>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-sm btn-outline-primary task-detail-btn" data-task-id="${fullTask.id}" title="查看详情">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-success task-toggle-btn" data-task-id="${fullTask.id}" data-status="active" title="启动任务" ${isActive ? 'disabled' : ''}>
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-warning task-toggle-btn" data-task-id="${fullTask.id}" data-status="inactive" title="禁用任务" ${!isActive ? 'disabled' : ''}>
+                        <i class="fas fa-pause"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger task-remove-btn" title="移除关联">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <input type="hidden" name="scheduled_task_ids" value="${fullTask.id}">
             `;
+            
+            // 添加事件监听器
+            const detailBtn = taskDiv.querySelector('.task-detail-btn');
+            const toggleBtn = taskDiv.querySelector('.task-toggle-btn');
+            const removeBtn = taskDiv.querySelector('.task-remove-btn');
+            
+            // 查看详情按钮事件
+            detailBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('查看详情按钮被点击，任务ID:', this.getAttribute('data-task-id'));
+                
+                const taskId = this.getAttribute('data-task-id');
+                const task = scheduledTasks.find(t => t.id == taskId) || fullTask;
+                console.log('准备显示任务详情，任务对象:', task);
+                
+                showTaskDetailModal(task);
+            });
+            
+            // 状态切换按钮事件
+            toggleBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('状态切换按钮被点击，任务ID:', this.getAttribute('data-task-id'), '目标状态:', this.getAttribute('data-status'));
+                
+                const taskId = this.getAttribute('data-task-id');
+                const status = this.getAttribute('data-status');
+                toggleTaskStatus(taskId, status);
+            });
+            
+            // 移除按钮事件
+            removeBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('移除按钮被点击');
+                
+                removeTaskFromEvent(this);
+            });
+            
             container.appendChild(taskDiv);
+            console.log('任务已添加到列表，容器现在包含', container.children.length, '个任务');
+        }
+
+        function removeTaskFromEvent(button) {
+            if (confirm('确定要移除这个关联任务吗？')) {
+                button.closest('.alert').remove();
+            }
         }
 
         function clearTasks() {
@@ -1689,19 +1617,90 @@
         }
 
         function setTasks(tasks) {
+            console.log('setTasks 被调用，任务列表:', tasks);
+            console.log('全局scheduledTasks:', scheduledTasks);
+            
             clearTasks();
             tasks.forEach(task => {
+                console.log('处理任务:', task);
+                
                 const taskDiv = document.createElement('div');
                 taskDiv.className = 'alert alert-info alert-sm d-flex justify-content-between align-items-center';
+                
+                // 获取最新的任务状态和完整信息
+                const fullTask = scheduledTasks.find(t => t.id == task.id) || task;
+                console.log('找到的完整任务信息:', fullTask);
+                
+                // 确定任务状态 - 兼容不同的状态字段名
+                const taskStatus = fullTask.status || fullTask.is_active;
+                const isActive = taskStatus === 'active' || taskStatus === true;
+                console.log('任务状态解析:', { taskStatus, isActive, fullTaskStatus: fullTask.status, fullTaskIsActive: fullTask.is_active });
+                
                 taskDiv.innerHTML = `
-                    <span>${task.query} (${task.schedule_type})</span>
-                    <button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                    <input type="hidden" name="scheduled_task_ids" value="${task.id}">
+                    <div class="d-flex align-items-center">
+                        <span class="me-2">${fullTask.task ? fullTask.task.query : fullTask.query} (${fullTask.schedule_type})</span>
+                        <span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? '启用' : '禁用'}</span>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-sm btn-outline-primary task-detail-btn" data-task-id="${fullTask.id}" title="查看详情">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-success task-toggle-btn" data-task-id="${fullTask.id}" data-status="active" title="启动任务" ${isActive ? 'disabled' : ''}>
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning task-toggle-btn" data-task-id="${fullTask.id}" data-status="inactive" title="禁用任务" ${!isActive ? 'disabled' : ''}>
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger task-remove-btn" title="移除关联">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" name="scheduled_task_ids" value="${fullTask.id}">
                 `;
+                
+                // 添加事件监听器
+                const detailBtn = taskDiv.querySelector('.task-detail-btn');
+                const toggleBtn = taskDiv.querySelector('.task-toggle-btn');
+                const removeBtn = taskDiv.querySelector('.task-remove-btn');
+                
+                // 查看详情按钮事件
+                detailBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('查看详情按钮被点击，任务ID:', this.getAttribute('data-task-id'));
+                    
+                    const taskId = this.getAttribute('data-task-id');
+                    const task = scheduledTasks.find(t => t.id == taskId) || fullTask;
+                    console.log('准备显示任务详情，任务对象:', task);
+                    
+                    showTaskDetailModal(task);
+                });
+                
+                // 状态切换按钮事件
+                toggleBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('状态切换按钮被点击，任务ID:', this.getAttribute('data-task-id'), '目标状态:', this.getAttribute('data-status'));
+                    
+                    const taskId = this.getAttribute('data-task-id');
+                    const status = this.getAttribute('data-status');
+                    toggleTaskStatus(taskId, status);
+                });
+                
+                // 移除按钮事件
+                removeBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('移除按钮被点击');
+                    
+                    removeTaskFromEvent(this);
+                });
+                
                 document.getElementById('tasks-list').appendChild(taskDiv);
+                console.log('任务已添加到列表，任务ID:', fullTask.id, '状态:', isActive ? '启用' : '禁用');
             });
+            
+            console.log('setTasks 完成，总共添加了', tasks.length, '个任务');
         }
 
         function getTasks() {
@@ -1730,45 +1729,74 @@
 
         function renderFilteredEvents(filteredEvents) {
             const tbody = document.getElementById('events-table-body');
+            const emptyState = document.getElementById('empty-state');
+            const eventsCount = document.getElementById('events-count');
+            
+            // 更新事件计数
+            eventsCount.textContent = `${filteredEvents.length} 个事件`;
+            
+            if (filteredEvents.length === 0) {
+                tbody.innerHTML = '';
+                emptyState.style.display = 'block';
+                emptyState.innerHTML = `
+                    <i class="fas fa-search"></i>
+                    <h5>未找到匹配的事件</h5>
+                    <p>请尝试调整搜索条件或创建新事件</p>
+                `;
+                return;
+            }
+            
+            emptyState.style.display = 'none';
             tbody.innerHTML = '';
             
             filteredEvents.forEach(event => {
-                // 使用相同的渲染逻辑
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>
-                        <strong>${event.name}</strong>
-                        <br><small class="text-muted">${event.description || '无描述'}</small>
+                    <td class="event-name-cell">
+                        <div class="event-title">${event.name}</div>
+                        <div class="event-description">${event.description || '暂无描述'}</div>
                     </td>
-                    <td><span class="badge bg-primary">${event.event_type}</span></td>
-                    <td>${renderTags(event.countries, 'country')}</td>
-                    <td>${renderTags(event.domains, 'domain')}</td>
-                    <td>${renderTags(event.keywords, 'tag')}</td>
-                    <td>${renderTags(event.focus_points, 'focus')}</td>
+                    <td>
+                        <span class="badge bg-primary">${event.event_type}</span>
+                    </td>
+                    <td>
+                        ${renderTags(event.countries, 'country')}
+                    </td>
+                    <td>
+                        ${renderTags(event.domains, 'domain')}
+                    </td>
+                    <td>
+                        ${renderTags(event.keywords, 'tag')}
+                    </td>
+                    <td>
+                        ${renderTags(event.focus_points, 'focus')}
+                    </td>
                     <td>
                         ${event.involves_china ? 
-                            '<span class="badge bg-danger">涉及中国</span>' : 
-                            '<span class="badge bg-secondary">不涉及</span>'
+                            '<span class="badge bg-danger"><i class="fas fa-flag me-1"></i>涉及中国</span>' : 
+                            '<span class="badge bg-secondary"><i class="fas fa-globe me-1"></i>不涉及</span>'
                         }
                     </td>
                     <td>
                         ${event.scheduled_tasks.length > 0 ? 
-                            `<span class="badge bg-success">${event.scheduled_tasks.length}个任务</span>` : 
-                            '<span class="badge bg-warning">无关联任务</span>'
+                            `<span class="badge bg-success"><i class="fas fa-tasks me-1"></i>${event.scheduled_tasks.length}个任务</span>` : 
+                            '<span class="badge bg-warning"><i class="fas fa-exclamation-triangle me-1"></i>无关联任务</span>'
                         }
                     </td>
                     <td>
-                        ${formatDateRange(event.start_date, event.end_date)}
+                        <div class="text-muted">
+                            ${formatDateRange(event.start_date, event.end_date)}
+                        </div>
                     </td>
                     <td>
                         <div class="btn-group btn-group-sm">
-                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})">
+                            <button class="btn btn-outline-primary" onclick="viewEvent(${event.id})" title="查看详情">
                                 <i class="fas fa-eye"></i>
                             </button>
-                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})">
+                            <button class="btn btn-outline-warning" onclick="editEvent(${event.id})" title="编辑事件">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})">
+                            <button class="btn btn-outline-danger" onclick="deleteEvent(${event.id})" title="删除事件">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -1782,6 +1810,737 @@
         function logout() {
             if (confirm('确定要退出登录吗？')) {
                 window.location.href = '/api/auth/logout';
+            }
+        }
+
+        // 显示创建定时任务模态框
+        function showCreateTaskModal() {
+            // 获取当前正在编辑的事件ID
+            const currentEventId = document.getElementById('event-id').value;
+            
+            // 重置表单
+            document.getElementById('createTaskForm').reset();
+            
+            // 设置默认值
+            document.getElementById('task-max-results').value = '25';
+            document.getElementById('task-schedule-time').value = '09:00';
+            document.getElementById('task-interval-minutes').value = '60';
+            document.getElementById('task-schedule-date').value = '1';
+            
+            // 初始化定时字段显示状态
+            toggleScheduleFields();
+            
+            // 将当前事件ID存储到模态框中，供saveTask函数使用
+            document.getElementById('createTaskModal').setAttribute('data-current-event-id', currentEventId);
+            
+            const modal = new bootstrap.Modal(document.getElementById('createTaskModal'));
+            modal.show();
+        }
+
+        // 切换定时字段显示
+        function toggleScheduleFields() {
+            const scheduleType = document.getElementById('task-schedule-type').value;
+            
+            // 隐藏所有字段
+            document.getElementById('intervalFields').style.display = 'none';
+            document.getElementById('timeFields').style.display = 'none';
+            document.getElementById('weeklyFields').style.display = 'none';
+            document.getElementById('monthlyFields').style.display = 'none';
+            
+            // 根据选择的类型显示相应字段
+            if (scheduleType === 'interval') {
+                document.getElementById('intervalFields').style.display = 'block';
+            } else if (scheduleType === 'daily') {
+                document.getElementById('timeFields').style.display = 'block';
+            } else if (scheduleType === 'weekly') {
+                document.getElementById('timeFields').style.display = 'block';
+                document.getElementById('weeklyFields').style.display = 'block';
+            } else if (scheduleType === 'monthly') {
+                document.getElementById('timeFields').style.display = 'block';
+                document.getElementById('monthlyFields').style.display = 'block';
+            }
+        }
+
+        // 保存定时任务
+        async function saveTask() {
+            const form = document.getElementById('createTaskForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // 获取当前事件ID
+            const currentEventId = document.getElementById('createTaskModal').getAttribute('data-current-event-id');
+            if (!currentEventId) {
+                alert('无法获取当前事件ID，请重新打开事件编辑页面');
+                return;
+            }
+
+            // 收集搜索任务参数
+            const taskData = {
+                query: document.getElementById('task-query').value,
+                max_results: parseInt(document.getElementById('task-max-results').value) || 25,
+                region_code: document.getElementById('task-region').value || null,
+                relevance_language: document.getElementById('task-language').value || null,
+                video_duration: document.getElementById('task-video-duration').value || null,
+                video_definition: document.getElementById('task-video-definition').value || null,
+                video_type: document.getElementById('task-video-type').value || null,
+                published_after: document.getElementById('task-published-after').value || null,
+                published_before: document.getElementById('task-published-before').value || null
+            };
+
+            // 收集定时任务参数
+            const scheduleType = document.getElementById('task-schedule-type').value;
+            const scheduledTaskData = {
+                schedule_type: scheduleType,
+                description: document.getElementById('task-description').value,
+                status: 'inactive' // 默认创建时为禁用状态
+            };
+
+            // 根据定时类型添加相应参数
+            if (scheduleType === 'interval') {
+                scheduledTaskData.interval_minutes = parseInt(document.getElementById('task-interval-minutes').value) || 60;
+            } else if (scheduleType === 'daily') {
+                scheduledTaskData.schedule_time = document.getElementById('task-schedule-time').value || '09:00';
+            } else if (scheduleType === 'weekly') {
+                scheduledTaskData.schedule_time = document.getElementById('task-schedule-time').value || '09:00';
+                const selectedDays = Array.from(document.querySelectorAll('input[name="schedule_days"]:checked'))
+                    .map(cb => parseInt(cb.value));
+                if (selectedDays.length === 0) {
+                    alert('请至少选择一个执行日期');
+                    return;
+                }
+                scheduledTaskData.schedule_days = selectedDays;
+            } else if (scheduleType === 'monthly') {
+                scheduledTaskData.schedule_time = document.getElementById('task-schedule-time').value || '09:00';
+                scheduledTaskData.schedule_date = parseInt(document.getElementById('task-schedule-date').value) || 1;
+            }
+
+            // 添加开始和结束日期
+            if (document.getElementById('task-start-date').value) {
+                scheduledTaskData.start_date = document.getElementById('task-start-date').value;
+            }
+            if (document.getElementById('task-end-date').value) {
+                scheduledTaskData.end_date = document.getElementById('task-end-date').value;
+            }
+
+            try {
+                // 首先创建搜索任务
+                const taskResponse = await fetch('/api/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                });
+                const taskResult = await taskResponse.json();
+
+                if (!taskResult.success) {
+                    alert('创建搜索任务失败: ' + taskResult.error);
+                    return;
+                }
+
+                // 然后创建定时任务
+                scheduledTaskData.task_id = taskResult.task.id;
+                const scheduledTaskResponse = await fetch('/api/scheduled-tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(scheduledTaskData)
+                });
+                const scheduledTaskResult = await scheduledTaskResponse.json();
+
+                if (scheduledTaskResult.success) {
+                    // 创建成功后，自动绑定到当前事件
+                    try {
+                        const bindResponse = await fetch(`/api/scheduled-tasks/${scheduledTaskResult.scheduled_task_id}/bind-event`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ event_id: parseInt(currentEventId) })
+                        });
+                        const bindResult = await bindResponse.json();
+
+                        if (bindResult.success) {
+                            alert('定时任务创建成功并已自动绑定到当前事件！');
+                        } else {
+                            alert('定时任务创建成功，但绑定到事件失败: ' + bindResult.error);
+                        }
+                    } catch (bindError) {
+                        console.error('绑定事件失败:', bindError);
+                        alert('定时任务创建成功，但绑定到事件失败');
+                    }
+
+                    // 刷新相关数据
+                    loadScheduledTasks(); // 刷新任务列表
+                    loadEvents(); // 刷新事件列表，更新关联任务显示
+                    
+                    // 关闭模态框
+                    bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide();
+                    
+                    // 清空表单
+                    form.reset();
+                    toggleScheduleFields(); // 重置字段显示
+                    
+                    // 刷新当前事件的任务列表
+                    if (currentEventId) {
+                        // 重新加载当前事件的任务列表
+                        const event = events.find(e => e.id == currentEventId);
+                        if (event) {
+                            setTasks(event.scheduled_tasks || []);
+                        }
+                    }
+                } else {
+                    alert('创建定时任务失败: ' + scheduledTaskResult.error);
+                }
+            } catch (error) {
+                console.error('保存定时任务失败:', error);
+                alert('保存定时任务失败: ' + error.message);
+            }
+        }
+
+        // 任务详情模态框
+        async function showTaskDetailModal(task) {
+            console.log('showTaskDetailModal 被调用，任务对象:', task);
+            console.log('任务ID:', task.id);
+            console.log('任务状态:', task.status || task.is_active);
+            
+            const content = document.getElementById('task-detail-content');
+            if (!content) {
+                console.error('找不到任务详情内容容器');
+                return;
+            }
+            
+            // 显示加载状态
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2">正在加载任务详情...</p>
+                </div>
+            `;
+            
+            try {
+                console.log('开始获取任务执行历史，API地址:', `/api/scheduled-tasks/${task.id}/execution-history`);
+                
+                // 获取任务执行历史
+                const response = await fetch(`/api/scheduled-tasks/${task.id}/execution-history`);
+                console.log('API响应状态:', response.status, response.statusText);
+                
+                const data = await response.json();
+                console.log('API响应数据:', data);
+                
+                let executionHistoryHtml = '';
+                if (data.success && data.execution_history && data.execution_history.length > 0) {
+                    console.log('找到执行历史，数量:', data.execution_history.length);
+                    executionHistoryHtml = `
+                        <div class="mt-3">
+                            <h6>执行历史</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>执行时间</th>
+                                            <th>状态</th>
+                                            <th>结果数量</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${data.execution_history.map(execution => `
+                                            <tr>
+                                                <td>${new Date(execution.execution_time).toLocaleString('zh-CN')}</td>
+                                                <td>
+                                                    <span class="badge ${execution.status === 'success' ? 'bg-success' : 'bg-danger'}">
+                                                        ${execution.status === 'success' ? '成功' : '失败'}
+                                                    </span>
+                                                </td>
+                                                <td>${execution.video_count || 0}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewExecutionVideos(${execution.id})">
+                                                        查看视频
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    console.log('没有找到执行历史');
+                    executionHistoryHtml = '<p class="text-muted mt-3">暂无执行历史</p>';
+                }
+                
+                // 确定任务状态
+                const taskStatus = task.status || task.is_active;
+                const isActive = taskStatus === 'active' || taskStatus === true;
+                console.log('任务状态解析:', { taskStatus, isActive, taskStatusField: task.status, taskIsActiveField: task.is_active });
+                
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>基本信息</h6>
+                            <p><strong>任务查询:</strong> ${task.task ? task.task.query : task.query}</p>
+                            <p><strong>调度类型:</strong> ${task.schedule_type}</p>
+                            <p><strong>开始日期:</strong> ${task.start_date ? new Date(task.start_date).toLocaleString('zh-CN') : '未设置'}</p>
+                            <p><strong>结束日期:</strong> ${task.end_date ? new Date(task.end_date).toLocaleString('zh-CN') : '未设置'}</p>
+                            <p><strong>描述:</strong> ${task.description || '无描述'}</p>
+                            <p><strong>状态:</strong> <span class="badge ${isActive ? 'bg-success' : 'bg-secondary'}">${isActive ? '启用' : '禁用'}</span></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>操作</h6>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-sm btn-outline-success" onclick="toggleTaskStatus(${task.id}, 'active')" ${isActive ? 'disabled' : ''}>
+                                    <i class="fas fa-play me-1"></i> 启动
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="toggleTaskStatus(${task.id}, 'inactive')" ${!isActive ? 'disabled' : ''}>
+                                    <i class="fas fa-pause me-1"></i> 禁用
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${task.id})">
+                                    <i class="fas fa-trash me-1"></i> 删除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    ${executionHistoryHtml}
+                `;
+                
+                console.log('任务详情内容已设置，准备显示模态框');
+                
+                // 显示模态框
+                const modalElement = document.getElementById('taskDetailModal');
+                if (!modalElement) {
+                    console.error('找不到任务详情模态框元素');
+                    return;
+                }
+                
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+                
+                console.log('任务详情模态框已显示');
+                
+            } catch (error) {
+                console.error('加载任务详情失败:', error);
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        加载任务详情失败: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // 切换任务状态
+        async function toggleTaskStatus(taskId, status) {
+            console.log('toggleTaskStatus 被调用，任务ID:', taskId, '目标状态:', status);
+            
+            const task = scheduledTasks.find(t => t.id == taskId);
+            if (!task) {
+                console.error('找不到任务，ID:', taskId);
+                return;
+            }
+            
+            console.log('找到任务:', task);
+            console.log('当前任务状态:', task.status || task.is_active);
+
+            if (!confirm(`确定要将任务 "${task.task ? task.task.query : task.query}" 设置为 ${status === 'active' ? '启用' : '禁用'} 吗？`)) {
+                console.log('用户取消了状态切换');
+                return;
+            }
+
+            try {
+                console.log('开始发送状态切换请求，API地址:', `/api/scheduled-tasks/${taskId}/toggle`);
+                console.log('请求数据:', { status: status });
+                
+                const response = await fetch(`/api/scheduled-tasks/${taskId}/toggle`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+                
+                console.log('API响应状态:', response.status, response.statusText);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API响应数据:', data);
+
+                if (data.success) {
+                    console.log('状态切换成功');
+                    alert(`任务 "${task.task ? task.task.query : task.query}" 已设置为 ${status === 'active' ? '启用' : '禁用'}！`);
+                    
+                    // 更新本地任务状态
+                    task.status = status;
+                    console.log('本地任务状态已更新:', task.status);
+                    
+                    // 刷新任务列表
+                    console.log('开始刷新任务列表');
+                    await loadScheduledTasks();
+                    
+                    // 刷新事件列表
+                    console.log('开始刷新事件列表');
+                    await loadEvents();
+                    
+                    // 如果当前正在编辑事件，刷新事件的任务列表
+                    const currentEventId = document.getElementById('event-id').value;
+                    console.log('当前编辑的事件ID:', currentEventId);
+                    
+                    if (currentEventId) {
+                        const event = events.find(e => e.id == currentEventId);
+                        if (event) {
+                            console.log('找到当前事件:', event);
+                            // 重新加载事件数据以获取最新状态
+                            try {
+                                console.log('重新加载事件数据，API地址:', `/api/events/${currentEventId}`);
+                                const eventResponse = await fetch(`/api/events/${currentEventId}`);
+                                const eventData = await eventResponse.json();
+                                console.log('事件数据响应:', eventData);
+                                
+                                if (eventData.success) {
+                                    // 更新本地事件数据
+                                    const eventIndex = events.findIndex(e => e.id == currentEventId);
+                                    if (eventIndex !== -1) {
+                                        events[eventIndex] = eventData.event;
+                                        console.log('本地事件数据已更新');
+                                    }
+                                    // 重新设置任务列表
+                                    console.log('重新设置事件任务列表，任务数量:', eventData.event.scheduled_tasks?.length || 0);
+                                    setTasks(eventData.event.scheduled_tasks || []);
+                                }
+                            } catch (error) {
+                                console.error('刷新事件数据失败:', error);
+                                // 如果刷新失败，使用本地数据
+                                console.log('使用本地事件数据重新设置任务列表');
+                                setTasks(event.scheduled_tasks || []);
+                            }
+                        }
+                    }
+                    
+                    // 如果任务详情模态框是打开的，关闭它
+                    const taskDetailModal = bootstrap.Modal.getInstance(document.getElementById('taskDetailModal'));
+                    if (taskDetailModal) {
+                        console.log('关闭任务详情模态框');
+                        taskDetailModal.hide();
+                    }
+                    
+                    console.log('状态切换操作完成');
+                } else {
+                    console.error('状态切换失败:', data.error);
+                    alert('切换任务状态失败: ' + (data.error || '未知错误'));
+                }
+            } catch (error) {
+                console.error('切换任务状态失败:', error);
+                alert('切换任务状态失败: ' + error.message);
+            }
+        }
+
+        // 删除任务
+        async function deleteTask(taskId) {
+            const task = scheduledTasks.find(t => t.id == taskId);
+            if (!task) return;
+
+            if (!confirm(`确定要删除任务 "${task.task ? task.task.query : task.query}" 吗？此操作不可恢复。`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert(`任务 "${task.task ? task.task.query : task.query}" 已删除！`);
+                    
+                    // 刷新任务列表
+                    await loadScheduledTasks();
+                    
+                    // 刷新事件列表
+                    await loadEvents();
+                    
+                    // 如果当前正在编辑事件，刷新事件的任务列表
+                    const currentEventId = document.getElementById('event-id').value;
+                    if (currentEventId) {
+                        const event = events.find(e => e.id == currentEventId);
+                        if (event) {
+                            // 重新加载事件数据以获取最新状态
+                            try {
+                                const eventResponse = await fetch(`/api/events/${currentEventId}`);
+                                const eventData = await eventResponse.json();
+                                if (eventData.success) {
+                                    // 更新本地事件数据
+                                    const eventIndex = events.findIndex(e => e.id == currentEventId);
+                                    if (eventIndex !== -1) {
+                                        events[eventIndex] = eventData.event;
+                                    }
+                                    // 重新设置任务列表
+                                    setTasks(eventData.event.scheduled_tasks || []);
+                                }
+                            } catch (error) {
+                                console.error('刷新事件数据失败:', error);
+                                // 如果刷新失败，使用本地数据
+                                setTasks(event.scheduled_tasks || []);
+                            }
+                        }
+                    }
+                    
+                    // 如果任务详情模态框是打开的，关闭它
+                    const taskDetailModal = bootstrap.Modal.getInstance(document.getElementById('taskDetailModal'));
+                    if (taskDetailModal) {
+                        taskDetailModal.hide();
+                    }
+                } else {
+                    alert('删除任务失败: ' + data.error);
+                }
+            } catch (error) {
+                console.error('删除任务失败:', error);
+                alert('删除任务失败');
+            }
+        }
+
+        // 查看执行结果视频
+        async function viewExecutionVideos(executionId) {
+            console.log('=== viewExecutionVideos 函数开始 ===');
+            console.log('viewExecutionVideos 被调用，执行ID:', executionId);
+            console.log('当前时间:', new Date().toISOString());
+            console.log('函数版本: v2025.08.15.01');
+            
+            const content = document.getElementById('video-list-content');
+            if (!content) {
+                console.error('找不到视频列表内容容器');
+                return;
+            }
+            
+            // 显示加载状态
+            content.innerHTML = `
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                    <p class="mt-2">正在加载视频列表...</p>
+                </div>
+            `;
+            
+            try {
+                // 获取执行结果的视频列表 - 修复API路径
+                const apiUrl = `/api/scheduled-tasks/executions/${executionId}/videos`;
+                console.log('请求视频列表，API地址:', apiUrl);
+                console.log('完整的API URL:', window.location.origin + apiUrl);
+                console.log('API路径验证: 使用复数形式 "executions"');
+                
+                // 强制刷新缓存
+                const timestamp = new Date().getTime();
+                const cacheBustedUrl = `${apiUrl}?_t=${timestamp}`;
+                console.log('添加时间戳防止缓存:', cacheBustedUrl);
+                
+                const response = await fetch(cacheBustedUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Cache-Control': 'no-cache',
+                        'Pragma': 'no-cache'
+                    }
+                });
+                console.log('API响应状态:', response.status, response.statusText);
+                console.log('API响应头:', Object.fromEntries(response.headers.entries()));
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('API响应数据:', data);
+                
+                if (data.success && data.videos) {
+                    console.log('找到视频数据，数量:', data.videos.length);
+                    
+                    let videosHtml = '';
+                    data.videos.forEach((video, index) => {
+                        console.log(`处理视频 ${index + 1}:`, video);
+                        
+                        // 解析嵌套的YouTube API数据结构
+                        let videoTitle, videoDescription, channelTitle, publishedAt, thumbnailUrl;
+                        
+                        if (video.snippet) {
+                            // 新格式：嵌套结构
+                            videoTitle = video.snippet.title || '无标题';
+                            videoDescription = video.snippet.description || '无描述';
+                            channelTitle = video.snippet.channelTitle || '未知频道';
+                            publishedAt = video.snippet.publishedAt;
+                            
+                            // 处理缩略图
+                            if (video.snippet.thumbnails) {
+                                if (video.snippet.thumbnails.medium && video.snippet.thumbnails.medium.url) {
+                                    thumbnailUrl = video.snippet.thumbnails.medium.url;
+                                } else if (video.snippet.thumbnails.default && video.snippet.thumbnails.default.url) {
+                                    thumbnailUrl = video.snippet.thumbnails.default.url;
+                                } else if (video.snippet.thumbnails.high && video.snippet.thumbnails.high.url) {
+                                    thumbnailUrl = video.snippet.thumbnails.high.url;
+                                }
+                            }
+                        } else {
+                            // 兼容旧格式：扁平结构
+                            videoTitle = video.title || video.video_title || '无标题';
+                            videoDescription = video.description || video.video_description || '无描述';
+                            channelTitle = video.channel_title || video.channelTitle || '未知频道';
+                            publishedAt = video.published_at || video.publishedAt || video.published_date;
+                            
+                            // 处理缩略图
+                            if (video.thumbnails) {
+                                if (video.thumbnails.medium && video.thumbnails.medium.url) {
+                                    thumbnailUrl = video.thumbnails.medium.url;
+                                } else if (video.thumbnails.default && video.thumbnails.default.url) {
+                                    thumbnailUrl = video.thumbnails.default.url;
+                                } else if (video.thumbnails.high && video.thumbnails.high.url) {
+                                    thumbnailUrl = video.thumbnails.high.url;
+                                }
+                            } else if (video.thumbnail_url) {
+                                thumbnailUrl = video.thumbnail_url;
+                            }
+                        }
+                        
+                        // 如果没有缩略图，使用默认图片
+                        if (!thumbnailUrl) {
+                            thumbnailUrl = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0xNjAgOTBDMTI4LjUgOTAgMTAyIDExNi41IDEwMiAxNDhDMTIyLjUgMTQ4IDE0MiAxNjcuNSAxNDIgMTg4QzE0MiAxNjcuNSAxNjIgMTQ4IDE4MiAxNDhDMTgyIDExNi41IDE1NS41IDkwIDE2MCA5MFoiIGZpbGw9IiNDQ0NDQ0MiLz4KPC9zdmc+';
+                        }
+                        
+                        // 处理翻译文本
+                        const title = video.translated_title ? 
+                            `${videoTitle}<br><small class="text-muted translated-text">${video.translated_title}</small>` : 
+                            videoTitle;
+                        
+                        const description = video.translated_description ? 
+                            `${videoDescription}<br><small class="text-muted translated-text">${video.translated_description}</small>` : 
+                            videoDescription;
+                        
+                        // 格式化发布时间
+                        let formattedDate = '未知时间';
+                        if (publishedAt) {
+                            try {
+                                const date = new Date(publishedAt);
+                                if (!isNaN(date.getTime())) {
+                                    formattedDate = date.toLocaleDateString('zh-CN');
+                                }
+                            } catch (e) {
+                                console.warn('日期解析失败:', publishedAt);
+                            }
+                        }
+                        
+                        videosHtml += `
+                            <div class="card mb-3">
+                                <div class="row g-0">
+                                    <div class="col-md-3">
+                                        <img src="${thumbnailUrl}" 
+                                             class="img-fluid rounded-start" alt="视频缩略图"
+                                             style="max-width: 100%; height: auto; min-height: 120px; object-fit: cover;"
+                                             onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgdmlld0JveD0iMCAwIDMyMCAxODAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIiBmaWxsPSIjRjVGNUY1Ii8+CjxwYXRoIGQ9Ik0xNjAgOTBDMTI4LjUgOTAgMTAyIDExNi41IDEwMiAxNDhDMTIyLjUgMTQ4IDE0MiAxNjcuNSAxNDIgMTg4QzE0MiAxNjcuNSAxNjIgMTQ4IDE4MiAxNDhDMTgyIDExNi41IDE1NS41IDkwIDE2MCA5MFoiIGZpbGw9IiNDQ0NDQ0MiLz4KPC9zdmc+';">
+                                    </div>
+                                    <div class="col-md-9">
+                                        <div class="card-body">
+                                            <h6 class="card-title">${title}</h6>
+                                            <p class="card-text">${description}</p>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-user me-1"></i>${channelTitle}
+                                                    </small>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar me-1"></i>${formattedDate}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    content.innerHTML = `
+                        <div class="mb-3">
+                            <h6>执行结果视频列表 (共 ${data.videos.length} 个视频)</h6>
+                        </div>
+                        <div id="videos-container">
+                            ${videosHtml}
+                        </div>
+                    `;
+                    
+                    console.log('视频列表已渲染');
+                    
+                    // 显示视频列表模态框
+                    const modalElement = document.getElementById('videoListModal');
+                    if (modalElement) {
+                        const modal = new bootstrap.Modal(modalElement);
+                        modal.show();
+                        console.log('视频列表模态框已显示');
+                    } else {
+                        console.error('找不到视频列表模态框元素');
+                    }
+                } else {
+                    console.log('没有找到视频信息');
+                    content.innerHTML = `
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            该执行结果没有找到视频信息
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载视频列表失败:', error);
+                console.error('错误详情:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                content.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        加载视频列表失败: ${error.message}
+                    </div>
+                `;
+            }
+            
+            console.log('=== viewExecutionVideos 函数结束 ===');
+        }
+
+        // 切换双语显示
+        function toggleBilingualDisplay() {
+            const container = document.getElementById('videos-container');
+            const toggleText = document.getElementById('bilingual-toggle-text');
+            const toggleButton = document.querySelector('button[onclick="toggleBilingualDisplay()"]');
+            
+            if (container.classList.contains('bilingual-mode')) {
+                // 切换到单语模式
+                container.classList.remove('bilingual-mode');
+                toggleText.textContent = '显示双语';
+                toggleButton.classList.remove('btn-primary');
+                toggleButton.classList.add('btn-outline-primary');
+                
+                // 隐藏翻译文本
+                container.querySelectorAll('.translated-text').forEach(el => {
+                    el.style.display = 'none';
+                });
+            } else {
+                // 切换到双语模式
+                container.classList.add('bilingual-mode');
+                toggleText.textContent = '隐藏双语';
+                toggleButton.classList.remove('btn-outline-primary');
+                toggleButton.classList.add('btn-primary');
+                
+                // 显示翻译文本
+                container.querySelectorAll('.translated-text').forEach(el => {
+                    el.style.display = 'block';
+                });
             }
         }
     </script>

@@ -127,35 +127,55 @@ class TaskScheduler:
         """调度间隔任务"""
         def job():
             # 在执行前检查任务状态
-            db = db_manager.get_session()
+            db = None
             try:
+                print(f"检查定时任务 {scheduled_task.id} 状态")
+                db = db_manager.get_session()
+                print(f"定时任务 {scheduled_task.id} 获取数据库会话成功")
+                
                 task_check = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
-                if task_check and task_check.is_active:
-                    self._execute_scheduled_task(scheduled_task.id)
-                    # 只有在任务仍然启用时才重新调度
+                if task_check:
+                    print(f"定时任务 {scheduled_task.id} 当前状态: is_active = {task_check.is_active}")
                     if task_check.is_active:
-                        schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
+                        print(f"定时任务 {scheduled_task.id} 状态正常，开始执行")
+                        self.execute_scheduled_task(scheduled_task.id)
+                        # 只有在任务仍然启用时才重新调度
+                        task_refresh = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
+                        if task_refresh and task_refresh.is_active:
+                            print(f"定时任务 {scheduled_task.id} 重新调度")
+                            schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
+                        else:
+                            print(f"定时任务 {scheduled_task.id} 已被禁用，停止重新调度")
+                    else:
+                        print(f"定时任务 {scheduled_task.id} 已被禁用，跳过执行")
                 else:
-                    print(f"定时任务 {scheduled_task.id} 已被禁用，停止重新调度")
+                    print(f"定时任务 {scheduled_task.id} 查询失败")
             except Exception as e:
                 print(f"检查定时任务状态时出错: {e}")
             finally:
-                db.close()
+                # 确保数据库会话被正确关闭
+                if db:
+                    try:
+                        db.close()
+                        print(f"定时任务 {scheduled_task.id} 状态检查会话已关闭")
+                    except Exception as close_error:
+                        print(f"关闭数据库会话时出错: {close_error}")
         
         # 立即执行一次
         schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
+        print(f"定时任务 {scheduled_task.id} 已调度，间隔: {scheduled_task.interval_minutes} 分钟")
     
     def _schedule_daily_task(self, scheduled_task: ScheduledTask):
         """调度每日任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task.id)
+            self.execute_scheduled_task(scheduled_task.id)
         
         schedule.every().day.at(scheduled_task.schedule_time).do(job).tag(scheduled_task.id)
     
     def _schedule_weekly_task(self, scheduled_task: ScheduledTask):
         """调度每周任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task.id)
+            self.execute_scheduled_task(scheduled_task.id)
         
         days = [int(d) for d in scheduled_task.schedule_days.split(',')]
         for day in days:
@@ -177,33 +197,31 @@ class TaskScheduler:
     def _schedule_monthly_task(self, scheduled_task: ScheduledTask):
         """调度每月任务"""
         def job():
-            self._execute_scheduled_task(scheduled_task.id)
+            self.execute_scheduled_task(scheduled_task.id)
         
         # 每月指定日期执行
         schedule.every().month.at(scheduled_task.schedule_time).do(job).tag(scheduled_task.id)
     
-    def _execute_scheduled_task(self, scheduled_task_id):
+    def execute_scheduled_task(self, scheduled_task_id: int):
         """执行定时任务"""
+        db = None
+        execution_result = None
+        
         try:
+            # 为每个任务执行创建新的数据库会话
             db = db_manager.get_session()
+            print(f"定时任务 {scheduled_task_id} 创建新数据库会话")
             
-            # 重新查询定时任务和关联的搜索任务，确保会话绑定
+            # 重新查询定时任务，确保在当前会话中
             scheduled_task = db.query(ScheduledTask).filter_by(id=scheduled_task_id).first()
             if not scheduled_task:
                 print(f"定时任务 {scheduled_task_id} 不存在")
-                db.close()
                 return
             
-            # 检查任务是否仍然处于活动状态
-            if not scheduled_task.is_active:
-                print(f"定时任务 {scheduled_task_id} 已被禁用，跳过执行")
-                db.close()
-                return
-            
+            # 重新查询搜索任务，确保在当前会话中
             search_task = db.query(Task).filter_by(id=scheduled_task.task_id).first()
             if not search_task:
                 print(f"定时任务 {scheduled_task_id} 关联的搜索任务不存在")
-                db.close()
                 return
             
             print(f"执行定时任务: {scheduled_task_id}")
@@ -231,6 +249,7 @@ class TaskScheduler:
             db.add(execution_result)
             db.commit()
             db.flush()  # 确保ID被分配
+            print(f"创建执行结果记录，ID: {execution_result.id}")
             
             # 检查认证状态
             from .utils.auth_utils import global_credential_store
@@ -243,7 +262,6 @@ class TaskScheduler:
                 execution_result.videos_count = 0
                 db.commit()
                 print(f"定时任务 {scheduled_task_id} 认证失败: {error_msg}")
-                db.close()
                 return
             
             # 获取认证凭证
@@ -257,7 +275,6 @@ class TaskScheduler:
                 execution_result.videos_count = 0
                 db.commit()
                 print(f"定时任务 {scheduled_task_id} 获取凭证失败: {error_msg}")
-                db.close()
                 return
             
             # 认证YouTube服务
@@ -271,7 +288,6 @@ class TaskScheduler:
                 execution_result.videos_count = 0
                 db.commit()
                 print(f"定时任务 {scheduled_task_id} 认证失败: {error_msg}")
-                db.close()
                 return
             
             print(f"定时任务 {scheduled_task_id} 认证成功，开始执行搜索...")
@@ -391,7 +407,7 @@ class TaskScheduler:
                             continue
                 
                 db.commit()
-                print(f"定时任务 {scheduled_task.id} 执行成功，找到 {execution_result.videos_count} 个视频")
+                print(f"定时任务 {scheduled_task_id} 执行成功，找到 {execution_result.videos_count} 个视频")
                 
                 # 发送飞书消息
                 try:
@@ -406,7 +422,7 @@ class TaskScheduler:
                         videos = [ve.video for ve in video_executions if ve.video]
                         if videos:
                             execution_time = execution_result.completed_at.strftime("%Y-%m-%d %H:%M:%S")
-                            task_name = f"定时任务 {scheduled_task.id} - {search_task.query}"
+                            task_name = f"定时任务 {scheduled_task_id} - {search_task.query}"
                             
                             success = feishu_service.send_task_execution_result(
                                 task_name=task_name,
@@ -435,12 +451,12 @@ class TaskScheduler:
                 execution_result.result_data = None
                 execution_result.videos_count = 0
                 db.commit()
-                print(f"定时任务 {scheduled_task.id} 搜索失败: {error_msg}")
+                print(f"定时任务 {scheduled_task_id} 搜索失败: {error_msg}")
             
         except Exception as e:
             # 执行过程中出现异常
             try:
-                if 'execution_result' in locals():
+                if execution_result and db:
                     execution_result.status = 'failed'
                     execution_result.completed_at = get_east8_time()
                     execution_result.error_message = f"定时任务执行失败: {str(e)}"
@@ -450,43 +466,72 @@ class TaskScheduler:
                 print(f"定时任务 {scheduled_task_id} 执行异常: {str(e)}")
             except Exception as commit_error:
                 print(f"更新执行结果失败: {commit_error}")
-                db.rollback()
+                if db:
+                    db.rollback()
         finally:
-            try:
-                db.close()
-            except:
-                pass
+            # 确保数据库会话被正确关闭
+            if db:
+                try:
+                    db.close()
+                    print(f"定时任务 {scheduled_task_id} 数据库会话已关闭")
+                except Exception as close_error:
+                    print(f"关闭数据库会话时出错: {close_error}")
         
         print(f"定时任务执行完成: {scheduled_task_id}")
     
     def load_existing_tasks(self):
         """加载数据库中已存在的定时任务"""
+        db = None
         try:
+            print("开始加载已存在的定时任务")
             db = db_manager.get_session()
+            print("获取数据库会话成功")
+            
             existing_tasks = db.query(ScheduledTask).filter(ScheduledTask.is_active == True).all()
+            print(f"找到 {len(existing_tasks)} 个启用的定时任务")
             
             for task in existing_tasks:
+                print(f"加载定时任务: {task.id}, 类型: {task.schedule_type}")
                 self.add_scheduled_task(task)
             
             print(f"已加载 {len(existing_tasks)} 个定时任务")
-            db.close()
         except Exception as e:
             print(f"加载定时任务失败: {e}")
+        finally:
+            # 确保数据库会话被正确关闭
+            if db:
+                try:
+                    db.close()
+                    print("加载定时任务会话已关闭")
+                except Exception as close_error:
+                    print(f"关闭数据库会话时出错: {close_error}")
 
     def check_scheduled_task_status(self):
         """检查定时任务状态"""
+        db = None
         try:
+            print("开始检查定时任务状态")
             db = db_manager.get_session()
+            print("获取数据库会话成功")
+            
             scheduled_tasks = db.query(ScheduledTask).all()
+            print(f"找到 {len(scheduled_tasks)} 个定时任务")
             
             for scheduled_task in scheduled_tasks:
                 try:
+                    print(f"检查定时任务 {scheduled_task.id} 状态")
                     # 重新查询任务状态，避免会话绑定问题
                     task_refresh = db.query(ScheduledTask).filter_by(id=scheduled_task.id).first()
-                    if task_refresh and not task_refresh.is_active:
-                        # 任务已被禁用，从调度器中移除
-                        self.remove_scheduled_task(scheduled_task.id)
-                        print(f"定时任务 {scheduled_task.id} 已被禁用，从调度器中移除")
+                    if task_refresh:
+                        print(f"定时任务 {scheduled_task.id} 当前状态: is_active = {task_refresh.is_active}")
+                        if not task_refresh.is_active:
+                            # 任务已被禁用，从调度器中移除
+                            self.remove_scheduled_task(scheduled_task.id)
+                            print(f"定时任务 {scheduled_task.id} 已被禁用，从调度器中移除")
+                        else:
+                            print(f"定时任务 {scheduled_task.id} 状态正常")
+                    else:
+                        print(f"定时任务 {scheduled_task.id} 查询失败")
                 except Exception as e:
                     print(f"检查定时任务 {scheduled_task.id} 状态时出错: {e}")
                     continue
@@ -494,7 +539,13 @@ class TaskScheduler:
         except Exception as e:
             print(f"检查定时任务状态时出错: {e}")
         finally:
-            db.close()
+            # 确保数据库会话被正确关闭
+            if db:
+                try:
+                    db.close()
+                    print("数据库会话已关闭")
+                except Exception as close_error:
+                    print(f"关闭数据库会话时出错: {close_error}")
 
 
 # 全局调度器实例

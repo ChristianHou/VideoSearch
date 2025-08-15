@@ -463,6 +463,39 @@
         </div>
     </div>
 
+    <!-- 事件绑定模态框 -->
+    <div class="modal fade" id="eventBindingModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">绑定事件</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="event-select" class="form-label">选择要绑定的事件</label>
+                        <select class="form-select" id="event-select">
+                            <option value="">请选择事件...</option>
+                        </select>
+                    </div>
+                    <div id="selected-event-info" style="display: none;">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 id="selected-event-name"></h6>
+                                <p class="text-muted mb-2" id="selected-event-description"></p>
+                                <div id="selected-event-tags"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="bindEventToTask()">绑定事件</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 执行结果视频列表模态框 -->
     <div class="modal fade" id="executionVideosModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
@@ -1008,6 +1041,11 @@
                 
                 if (data.success) {
                     renderScheduledTasks(data.scheduled_tasks);
+                    
+                    // 为每个任务加载事件绑定信息
+                    data.scheduled_tasks.forEach(task => {
+                        loadTaskEventBindingInfo(task.id);
+                    });
                 } else {
                     console.error('获取定时任务列表失败:', data.error);
                 }
@@ -1096,6 +1134,13 @@
                                         </span>
                                         ${task.next_run ? `<span class="badge bg-info me-1">下次执行: ${formatDate(task.next_run)}</span>` : ''}
                                         ${searchParams.map(param => `<span class="badge bg-info me-1">${param}</span>`).join('')}
+                                    </div>
+                                    <div class="mb-2" id="event-info-${task.id}">
+                                        <div class="text-center">
+                                            <div class="spinner-border spinner-border-sm" role="status">
+                                                <span class="visually-hidden">加载中...</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-4 text-end">
@@ -1315,6 +1360,26 @@
                         </div>
                         
                         <hr>
+                        <h6>关联事件</h6>
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>当前关联的事件</span>
+                                    <button class="btn btn-primary btn-sm" onclick="showEventBindingModal(${scheduledTask.id})">
+                                        <i class="fas fa-link me-1"></i>绑定事件
+                                    </button>
+                                </div>
+                                <div id="event-binding-info-${scheduledTask.id}">
+                                    <div class="text-center">
+                                        <div class="spinner-border spinner-border-sm" role="status">
+                                            <span class="visually-hidden">加载中...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
                         <h6>执行历史</h6>
                         <div id="executionHistory">
                             <div class="text-center">
@@ -1329,6 +1394,9 @@
                     
                     // 加载执行历史
                     loadExecutionHistory(scheduledTaskId);
+                    
+                    // 加载事件绑定信息
+                    loadEventBindingInfo(scheduledTaskId);
                 }
             } catch (error) {
                 alert('获取定时任务详情失败: ' + error.message);
@@ -1445,6 +1513,227 @@
                 alert('删除定时任务失败: ' + error.message);
             } finally {
                 hideLoading();
+            }
+        }
+
+        // ==================== 事件绑定管理 ====================
+        
+        // 显示事件绑定模态框
+        async function showEventBindingModal(scheduledTaskId) {
+            try {
+                // 加载事件列表
+                const response = await fetch('/api/events');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const eventSelect = document.getElementById('event-select');
+                    eventSelect.innerHTML = '<option value="">请选择事件...</option>';
+                    
+                    data.events.forEach(event => {
+                        const option = document.createElement('option');
+                        option.value = event.id;
+                        option.textContent = event.name;
+                        eventSelect.appendChild(option);
+                    });
+                    
+                    // 显示模态框
+                    const modal = new bootstrap.Modal(document.getElementById('eventBindingModal'));
+                    modal.show();
+                    
+                    // 存储当前任务ID
+                    window.currentScheduledTaskId = scheduledTaskId;
+                    
+                    // 绑定事件选择变化事件
+                    eventSelect.onchange = function() {
+                        const selectedEventId = this.value;
+                        if (selectedEventId) {
+                            const selectedEvent = data.events.find(e => e.id == selectedEventId);
+                            showSelectedEventInfo(selectedEvent);
+                        } else {
+                            hideSelectedEventInfo();
+                        }
+                    };
+                } else {
+                    alert('加载事件列表失败: ' + data.error);
+                }
+            } catch (error) {
+                alert('加载事件列表失败: ' + error.message);
+            }
+        }
+        
+        // 显示选中事件信息
+        function showSelectedEventInfo(event) {
+            const infoDiv = document.getElementById('selected-event-info');
+            const nameDiv = document.getElementById('selected-event-name');
+            const descDiv = document.getElementById('selected-event-description');
+            const tagsDiv = document.getElementById('selected-event-tags');
+            
+            nameDiv.textContent = event.name;
+            descDiv.textContent = event.description || '暂无描述';
+            
+            // 渲染标签
+            let tagsHtml = '';
+            if (event.countries && event.countries.length > 0) {
+                tagsHtml += '<div class="mb-2"><strong>涉及国家:</strong> ';
+                tagsHtml += event.countries.map(country => `<span class="badge bg-info me-1">${country}</span>`).join('');
+                tagsHtml += '</div>';
+            }
+            if (event.domains && event.domains.length > 0) {
+                tagsHtml += '<div class="mb-2"><strong>涉及领域:</strong> ';
+                tagsHtml += event.domains.map(domain => `<span class="badge bg-success me-1">${domain}</span>`).join('');
+                tagsHtml += '</div>';
+            }
+            if (event.keywords && event.keywords.length > 0) {
+                tagsHtml += '<div class="mb-2"><strong>关键词:</strong> ';
+                tagsHtml += event.keywords.map(keyword => `<span class="badge bg-warning me-1">${keyword}</span>`).join('');
+                tagsHtml += '</div>';
+            }
+            
+            tagsDiv.innerHTML = tagsHtml;
+            infoDiv.style.display = 'block';
+        }
+        
+        // 隐藏选中事件信息
+        function hideSelectedEventInfo() {
+            document.getElementById('selected-event-info').style.display = 'none';
+        }
+        
+        // 绑定事件到任务
+        async function bindEventToTask() {
+            const eventId = document.getElementById('event-select').value;
+            const scheduledTaskId = window.currentScheduledTaskId;
+            
+            if (!eventId) {
+                alert('请选择要绑定的事件');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/bind-event`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        event_id: eventId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('事件绑定成功！');
+                    bootstrap.Modal.getInstance(document.getElementById('eventBindingModal')).hide();
+                    
+                    // 刷新事件绑定信息
+                    loadEventBindingInfo(scheduledTaskId);
+                } else {
+                    alert('事件绑定失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('事件绑定失败: ' + error.message);
+            }
+        }
+        
+        // 加载事件绑定信息
+        async function loadEventBindingInfo(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/event-binding`);
+                const data = await response.json();
+                
+                const container = document.getElementById(`event-binding-info-${scheduledTaskId}`);
+                
+                if (data.success && data.event) {
+                    const event = data.event;
+                    container.innerHTML = `
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">${event.name}</h6>
+                                        <p class="text-muted mb-2 small">${event.description || '暂无描述'}</p>
+                                        <div class="mb-2">
+                                            ${event.countries && event.countries.length > 0 ? 
+                                                `<span class="badge bg-info me-1">${event.countries.join(', ')}</span>` : ''
+                                            }
+                                            ${event.domains && event.domains.length > 0 ? 
+                                                `<span class="badge bg-success me-1">${event.domains.join(', ')}</span>` : ''
+                                            }
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="unbindEventFromTask(${scheduledTaskId})">
+                                        <i class="fas fa-unlink"></i> 解绑
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = '<p class="text-muted text-center">未绑定任何事件</p>';
+                }
+            } catch (error) {
+                container.innerHTML = '<p class="text-danger text-center">加载事件绑定信息失败</p>';
+            }
+        }
+        
+        // 解绑事件
+        async function unbindEventFromTask(scheduledTaskId) {
+            if (!confirm('确定要解绑这个事件吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/unbind-event`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('事件解绑成功！');
+                    loadEventBindingInfo(scheduledTaskId);
+                } else {
+                    alert('事件解绑失败: ' + result.error);
+                }
+            } catch (error) {
+                alert('事件解绑失败: ' + error.message);
+            }
+        }
+        
+        // 加载任务的事件绑定信息（用于列表显示）
+        async function loadTaskEventBindingInfo(scheduledTaskId) {
+            try {
+                const response = await fetch(`/api/scheduled-tasks/${scheduledTaskId}/event-binding`);
+                const data = await response.json();
+                
+                const container = document.getElementById(`event-info-${scheduledTaskId}`);
+                
+                if (data.success && data.event) {
+                    const event = data.event;
+                    container.innerHTML = `
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-link text-primary me-2"></i>
+                            <span class="text-muted small">关联事件:</span>
+                            <span class="badge bg-primary ms-1">${event.name}</span>
+                            ${event.countries && event.countries.length > 0 ? 
+                                `<span class="badge bg-info ms-1">${event.countries.join(', ')}</span>` : ''
+                            }
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="text-muted small">
+                            <i class="fas fa-unlink me-1"></i>未关联事件
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                const container = document.getElementById(`event-info-${scheduledTaskId}`);
+                container.innerHTML = `
+                    <div class="text-danger small">
+                        <i class="fas fa-exclamation-triangle me-1"></i>加载事件信息失败
+                    </div>
+                `;
             }
         }
         
