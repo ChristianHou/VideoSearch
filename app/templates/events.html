@@ -734,7 +734,12 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="task-query" class="form-label">搜索关键词 *</label>
-                                    <input type="text" class="form-control" id="task-query" name="query" required>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="task-query" name="query" required>
+                                        <button class="btn btn-outline-primary" type="button" onclick="showAIKeywordModal()">
+                                            <i class="fas fa-magic me-1"></i>AI生成
+                                        </button>
+                                    </div>
                                 </div>
                                 <div class="mb-3">
                                     <label for="task-max-results" class="form-label">最大结果数</label>
@@ -931,6 +936,84 @@
                         </div>
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI关键词生成模态框 -->
+    <div class="modal fade" id="aiKeywordModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-magic text-primary me-2"></i>AI关键词生成
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- 步骤1：选择事件 -->
+                    <div id="step1-select-event">
+                        <h6 class="mb-3">步骤1：选择事件</h6>
+                        <div class="mb-3">
+                            <label for="event-select-for-ai" class="form-label">选择要分析的事件</label>
+                            <select class="form-select" id="event-select-for-ai">
+                                <option value="">请选择事件...</option>
+                            </select>
+                        </div>
+                        <div class="d-flex justify-content-end">
+                            <button type="button" class="btn btn-primary" onclick="generateAIKeywords()" id="generate-btn" disabled>
+                                <i class="fas fa-magic me-1"></i>生成关键词
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 步骤2：生成结果 -->
+                    <div id="step2-result" style="display: none;">
+                        <h6 class="mb-3">步骤2：AI生成结果</h6>
+                        <div class="mb-3">
+                            <label class="form-label">选择的事件信息</label>
+                            <div class="card bg-light">
+                                <div class="card-body" id="selected-event-info">
+                                    <!-- 事件信息将在这里显示 -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">AI生成的关键词</label>
+                            <div class="card">
+                                <div class="card-body">
+                                    <div id="ai-generated-keywords" class="mb-2">
+                                        <!-- 生成的关键词将在这里显示 -->
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <button type="button" class="btn btn-success" onclick="acceptAIKeywords()">
+                                            <i class="fas fa-check me-1"></i>接受并使用
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" onclick="regenerateAIKeywords()">
+                                            <i class="fas fa-redo me-1"></i>重新生成
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" onclick="backToStep1()">
+                                            <i class="fas fa-arrow-left me-1"></i>返回选择
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 加载状态 -->
+                    <div id="ai-loading" style="display: none;">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">生成中...</span>
+                            </div>
+                            <p class="mt-3 text-muted">AI正在分析事件信息并生成关键词，请稍候...</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
             </div>
         </div>
@@ -2542,6 +2625,165 @@
                     el.style.display = 'block';
                 });
             }
+        }
+
+        // AI关键词生成相关函数
+        let currentGeneratedKeywords = '';
+        
+        // 显示AI关键词生成模态框
+        function showAIKeywordModal() {
+            // 加载事件列表到下拉框
+            loadEventsForAI();
+            
+            // 重置模态框状态
+            resetAIKeywordModal();
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('aiKeywordModal'));
+            modal.show();
+        }
+        
+        // 加载事件列表到AI模态框
+        function loadEventsForAI() {
+            const eventSelect = document.getElementById('event-select-for-ai');
+            eventSelect.innerHTML = '<option value="">请选择事件...</option>';
+            
+            // 使用全局的events数组
+            events.forEach(event => {
+                const option = new Option(event.name, event.id);
+                eventSelect.appendChild(option);
+            });
+            
+            // 添加事件监听器
+            eventSelect.addEventListener('change', function() {
+                const generateBtn = document.getElementById('generate-btn');
+                generateBtn.disabled = !this.value;
+            });
+        }
+        
+        // 生成AI关键词
+        async function generateAIKeywords() {
+            const eventId = document.getElementById('event-select-for-ai').value;
+            if (!eventId) {
+                alert('请先选择一个事件');
+                return;
+            }
+            
+            // 显示加载状态
+            showAILoading();
+            
+            try {
+                const response = await fetch('/api/scheduled-tasks/ai-generate-keywords', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ event_id: parseInt(eventId) })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // 保存生成的关键词
+                    currentGeneratedKeywords = data.keywords;
+                    
+                    // 显示结果
+                    showAIResult(data);
+                } else {
+                    alert('AI关键词生成失败: ' + data.error);
+                    hideAILoading();
+                }
+            } catch (error) {
+                console.error('AI关键词生成失败:', error);
+                alert('AI关键词生成失败: ' + error.message);
+                hideAILoading();
+            }
+        }
+        
+        // 显示AI加载状态
+        function showAILoading() {
+            document.getElementById('step1-select-event').style.display = 'none';
+            document.getElementById('step2-result').style.display = 'none';
+            document.getElementById('ai-loading').style.display = 'block';
+        }
+        
+        // 隐藏AI加载状态
+        function hideAILoading() {
+            document.getElementById('ai-loading').style.display = 'none';
+        }
+        
+        // 显示AI生成结果
+        function showAIResult(data) {
+            // 隐藏加载状态
+            hideAILoading();
+            
+            // 显示选择的事件信息
+            const eventInfo = document.getElementById('selected-event-info');
+            eventInfo.innerHTML = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <strong>事件名称:</strong> ${data.event_info.name}<br>
+                        <strong>事件类型:</strong> ${data.event_info.type}<br>
+                        <strong>涉及国家:</strong> ${data.event_info.countries ? data.event_info.countries.join(', ') : '未指定'}
+                    </div>
+                    <div class="col-md-6">
+                        <strong>涉及领域:</strong> ${data.event_info.domains ? data.event_info.domains.join(', ') : '未指定'}
+                    </div>
+                </div>
+            `;
+            
+            // 显示生成的关键词
+            const keywordsDiv = document.getElementById('ai-generated-keywords');
+            keywordsDiv.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-lightbulb me-2"></i>
+                    <strong>AI建议的搜索关键词:</strong><br>
+                    <span class="mt-2 d-inline-block">${data.keywords.replace(/\n/g, '<br>')}</span>
+                </div>
+            `;
+            
+            // 显示结果步骤
+            document.getElementById('step2-result').style.display = 'block';
+        }
+        
+        // 接受AI生成的关键词
+        function acceptAIKeywords() {
+            if (currentGeneratedKeywords) {
+                // 填入搜索关键词输入框
+                document.getElementById('task-query').value = currentGeneratedKeywords;
+                
+                // 关闭AI模态框
+                bootstrap.Modal.getInstance(document.getElementById('aiKeywordModal')).hide();
+                
+                // 显示成功提示
+                alert('AI生成的关键词已成功填入搜索关键词输入框！');
+            }
+        }
+        
+        // 重新生成AI关键词
+        function regenerateAIKeywords() {
+            // 重新调用生成函数
+            generateAIKeywords();
+        }
+        
+        // 返回步骤1
+        function backToStep1() {
+            document.getElementById('step2-result').style.display = 'none';
+            document.getElementById('step1-select-event').style.display = 'block';
+            
+            // 重置选择
+            document.getElementById('event-select-for-ai').value = '';
+            document.getElementById('generate-btn').disabled = true;
+        }
+        
+        // 重置AI关键词模态框
+        function resetAIKeywordModal() {
+            document.getElementById('step1-select-event').style.display = 'block';
+            document.getElementById('step2-result').style.display = 'none';
+            document.getElementById('ai-loading').style.display = 'none';
+            document.getElementById('event-select-for-ai').value = '';
+            document.getElementById('generate-btn').disabled = true;
+            currentGeneratedKeywords = '';
         }
     </script>
 </body>

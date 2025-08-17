@@ -598,3 +598,95 @@ def get_task_execution_history(scheduled_task_id):
     finally:
         if 'db' in locals():
             db.close()
+
+
+@scheduled_tasks_bp.post('/scheduled-tasks/ai-generate-keywords')
+def ai_generate_keywords():
+    """根据事件信息AI生成搜索关键词"""
+    try:
+        data = request.get_json()
+        event_id = data.get('event_id')
+        
+        if not event_id:
+            return jsonify({"error": "事件ID不能为空"}), 400
+        
+        db = db_manager.get_session()
+        
+        # 获取事件信息
+        from ..models import Event
+        event = db.query(Event).filter(Event.id == event_id).first()
+        
+        if not event:
+            return jsonify({"error": "事件不存在"}), 404
+        
+        # 构建事件描述
+        event_description = f"""
+事件名称: {event.name}
+事件类型: {event.event_type}
+涉及国家: {', '.join(event.countries) if event.countries else '未指定'}
+涉及领域: {', '.join(event.domains) if event.domains else '未指定'}
+关键词: {', '.join(event.keywords) if event.keywords else '未指定'}
+关注点: {', '.join(event.focus_points) if event.focus_points else '未指定'}
+是否涉及中国: {'是' if event.involves_china else '否'}
+事件描述: {event.description or '无描述'}
+开始时间: {event.start_date.isoformat() if event.start_date else '未设置'}
+结束时间: {event.end_date.isoformat() if event.end_date else '未设置'}
+        """.strip()
+        
+        # 调用DeepSeek服务生成关键词
+        try:
+            from ..services.deepseek_service import get_deepseek_service
+            
+            deepseek_service = get_deepseek_service()
+            if not deepseek_service:
+                return jsonify({
+                    "error": "DeepSeek服务未初始化或不可用"
+                }), 500
+            
+            # 构建事件信息字典
+            event_data = {
+                'name': event.name,
+                'event_type': event.event_type,
+                'countries': event.countries,
+                'domains': event.domains,
+                'keywords': event.keywords,
+                'focus_points': event.focus_points,
+                'involves_china': event.involves_china,
+                'description': event.description,
+                'start_date': event.start_date,
+                'end_date': event.end_date
+            }
+            
+            generated_keywords = deepseek_service.generate_keywords_from_event(event_data)
+            
+            if generated_keywords:
+                return jsonify({
+                    "success": True,
+                    "keywords": generated_keywords,
+                    "event_info": {
+                        "name": event.name,
+                        "type": event.event_type,
+                        "countries": event.countries,
+                        "domains": event.domains
+                    }
+                })
+            else:
+                return jsonify({
+                    "error": "AI关键词生成失败，请稍后重试"
+                }), 500
+            
+        except Exception as ai_error:
+            print(f"DeepSeek服务调用失败: {str(ai_error)}")
+            print(f"错误类型: {type(ai_error).__name__}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                "error": f"AI关键词生成失败: {str(ai_error)}"
+            }), 500
+        
+    except Exception as e:
+        print(f"AI关键词生成失败: {str(e)}")
+        return jsonify({"error": f"AI关键词生成失败: {str(e)}"}), 500
+    finally:
+        if 'db' in locals():
+            db.close()

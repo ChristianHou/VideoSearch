@@ -42,13 +42,40 @@ def create_app() -> Flask:
             init_translate_service()
         except Exception as e:
             print(f"翻译服务初始化失败: {e}")
+    
+    # 初始化DeepSeek AI服务
+    if AppConfig.DEEPSEEK_ENABLED:
+        try:
+            from .services.deepseek_service import init_deepseek_service
+            init_deepseek_service()
+        except Exception as e:
+            print(f"DeepSeek AI服务初始化失败: {e}")
 
     # 注册蓝图
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(tasks_bp, url_prefix='/api')
-    app.register_blueprint(scheduled_tasks_bp, url_prefix='/api')
-    app.register_blueprint(utils_bp, url_prefix='/api')
-    app.register_blueprint(events_bp, url_prefix='/api')
+    try:
+        print("正在注册蓝图...")
+        app.register_blueprint(auth_bp)
+        print("✅ auth_bp 注册成功")
+        
+        app.register_blueprint(tasks_bp, url_prefix='/api')
+        print("✅ tasks_bp 注册成功")
+        
+        app.register_blueprint(scheduled_tasks_bp, url_prefix='/api')
+        print("✅ scheduled_tasks_bp 注册成功")
+        
+        app.register_blueprint(utils_bp, url_prefix='/api')
+        print("✅ utils_bp 注册成功")
+        
+        app.register_blueprint(events_bp, url_prefix='/api')
+        print("✅ events_bp 注册成功")
+        
+        print(f"蓝图注册完成，总共 {len(app.url_map._rules)} 个路由规则")
+        
+    except Exception as e:
+        print(f"❌ 蓝图注册失败: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
 
     # 首页
     @app.route('/')

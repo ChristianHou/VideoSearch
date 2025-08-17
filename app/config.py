@@ -32,3 +32,7 @@ class AppConfig:
     VOLC_ACCESS_KEY = os.environ.get('VOLC_ACCESS_KEY', 'AKLTNDgxODIxNGU0MmRkNGQ0ZThkZGNjODliZmViZGNjYjQ')
     VOLC_SECRET_KEY = os.environ.get('VOLC_SECRET_KEY', 'T0RJd056Qm1abU5qTm1ObU5HTmxPR0prWXpRNE1tUmhNelF5TkRKaVltTQ==')
     VOLC_ENABLED = os.environ.get('VOLC_ENABLED', 'true').lower() == 'true'
+    
+    # DeepSeek AI配置
+    DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY', 'sk-d8df0e062ff34baf88920907ca156010')
+    DEEPSEEK_ENABLED = os.environ.get('DEEPSEEK_ENABLED', 'true').lower() == 'true'
