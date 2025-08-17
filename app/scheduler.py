@@ -8,10 +8,10 @@ from typing import Optional, List
 import schedule
 
 from .database import db_manager
-from .models import ScheduledTask, ExecutionResult, ScheduledExecutionResult, Task
+from .models import ScheduledTask, ExecutionResult, ScheduledExecutionResult, Task, VideoInfo, VideoExecutionResult
 from .services.youtube_service import youtube_service
+from .services.feishu_service import get_feishu_service
 from .utils.auth_utils import global_credential_store
-from .models import VideoInfo
 
 # 东八区时区
 EAST_8_TZ = timezone(timedelta(hours=8))
@@ -65,6 +65,9 @@ class TaskScheduler:
     def add_scheduled_task(self, scheduled_task: ScheduledTask):
         """添加定时任务到调度器"""
         try:
+            # 先检查是否已经存在相同ID的任务，如果存在则先移除
+            self.remove_scheduled_task(scheduled_task.id)
+            
             if scheduled_task.schedule_type == 'interval':
                 self._schedule_interval_task(scheduled_task)
             elif scheduled_task.schedule_type == 'daily':
@@ -139,15 +142,12 @@ class TaskScheduler:
                     if task_check.is_active:
                         print(f"定时任务 {scheduled_task.id} 状态正常，开始执行")
                         self.execute_scheduled_task(scheduled_task.id)
-                        # 只有在任务仍然启用时才重新调度
-                        task_refresh = db.query(ScheduledTask).filter(ScheduledTask.id == scheduled_task.id).first()
-                        if task_refresh and task_refresh.is_active:
-                            print(f"定时任务 {scheduled_task.id} 重新调度")
-                            schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
-                        else:
-                            print(f"定时任务 {scheduled_task.id} 已被禁用，停止重新调度")
+                        # 注意：不需要重新调度，schedule库会自动重复执行
+                        print(f"定时任务 {scheduled_task.id} 执行完成，等待下次调度")
                     else:
                         print(f"定时任务 {scheduled_task.id} 已被禁用，跳过执行")
+                        # 任务被禁用时，从调度器中移除
+                        self.remove_scheduled_task(scheduled_task.id)
                 else:
                     print(f"定时任务 {scheduled_task.id} 查询失败")
             except Exception as e:
@@ -161,7 +161,7 @@ class TaskScheduler:
                     except Exception as close_error:
                         print(f"关闭数据库会话时出错: {close_error}")
         
-        # 立即执行一次
+        # 使用schedule库的重复执行功能，不需要手动重新调度
         schedule.every(scheduled_task.interval_minutes).minutes.do(job).tag(scheduled_task.id)
         print(f"定时任务 {scheduled_task.id} 已调度，间隔: {scheduled_task.interval_minutes} 分钟")
     
@@ -387,7 +387,6 @@ class TaskScheduler:
                                 print(f"翻译视频信息时出错: {translate_error}")
                             
                             # 创建视频执行结果关联
-                            from .models import VideoExecutionResult
                             video_execution = VideoExecutionResult(
                                 video_id=video_info.id,
                                 scheduled_execution_result_id=execution_result.id,
@@ -411,7 +410,6 @@ class TaskScheduler:
                 
                 # 发送飞书消息
                 try:
-                    from .services.feishu_service import get_feishu_service
                     feishu_service = get_feishu_service()
                     if feishu_service:
                         # 获取前25个视频用于发送到飞书

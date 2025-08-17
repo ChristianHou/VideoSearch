@@ -51,6 +51,15 @@ def create_app() -> Flask:
         except Exception as e:
             print(f"DeepSeek AI服务初始化失败: {e}")
 
+    # 只在首次启动时显示配置摘要
+    if not hasattr(app, '_config_displayed'):
+        print("=== 应用配置摘要 ===")
+        config_summary = AppConfig.get_config_summary()
+        for key, value in config_summary.items():
+            print(f"  {key}: {value}")
+        print("===================")
+        app._config_displayed = True
+
     # 注册蓝图
     try:
         print("正在注册蓝图...")

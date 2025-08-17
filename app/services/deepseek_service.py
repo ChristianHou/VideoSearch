@@ -21,8 +21,10 @@ class DeepSeekService:
     def _init_service(self):
         """初始化DeepSeek API客户端"""
         try:
-            # 从环境变量获取API密钥，如果没有则使用默认值
-            api_key = os.getenv('DEEPSEEK_API_KEY', 'sk-d8df0e062ff34baf88920907ca156010')
+            # 从环境变量获取API密钥
+            api_key = os.getenv('DEEPSEEK_API_KEY')
+            if not api_key:
+                raise ValueError("DEEPSEEK_API_KEY 环境变量未设置")
             
             self.client = OpenAI(
                 api_key=api_key, 

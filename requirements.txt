@@ -12,3 +12,4 @@ schedule==1.2.0
 lark-oapi>=1.4.21
 volcengine>=1.0.195
 openai>=1.0.0
+python-dotenv>=1.0.0

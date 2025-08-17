@@ -441,16 +441,20 @@ def bind_event_to_task(scheduled_task_id):
         if not event:
             return jsonify({'success': False, 'error': '事件不存在'})
         
-        # 检查是否已经绑定
+        # 检查是否已经绑定到其他事件（一个任务只能绑定到一个事件）
         existing_binding = db.query(EventScheduledTask).filter_by(
-            event_id=event_id,
             scheduled_task_id=scheduled_task_id
         ).first()
         
         if existing_binding:
-            return jsonify({'success': False, 'error': '该事件已经绑定到此任务'})
+            # 如果已经绑定到其他事件，先解绑
+            if existing_binding.event_id != event_id:
+                db.delete(existing_binding)
+                print(f"定时任务 {scheduled_task_id} 已从事件 {existing_binding.event_id} 解绑")
+            else:
+                return jsonify({'success': False, 'error': '该事件已经绑定到此任务'})
         
-        # 创建绑定关系
+        # 创建新的绑定关系
         event_task_binding = EventScheduledTask(
             event_id=event_id,
             scheduled_task_id=scheduled_task_id

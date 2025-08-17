@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -23,10 +24,9 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 if __name__ == '__main__':
-    # 开发环境设置（生产禁用）
-    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
-    os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
-
+    # 生产环境设置
+    os.environ['FLASK_ENV'] = 'production'
+    
     # 注册信号处理器
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
@@ -36,10 +36,11 @@ if __name__ == '__main__':
     # 启动定时任务调度器
     start_scheduler()
     
-    print('\n🚀 服务器启动成功!')
+    print('\n🚀 生产环境服务器启动成功!')
     print('📍 访问地址: http://localhost:5000')
     print('📅 事件管理: http://localhost:5000/events')
     print('⏰ 定时任务调度器已启动')
     print('💡 按 Ctrl+C 退出\n')
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # 生产环境：禁用调试模式
+    app.run(host='0.0.0.0', port=5000, debug=False)
