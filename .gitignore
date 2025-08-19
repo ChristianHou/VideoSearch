@@ -10,6 +10,7 @@ video_search.db
 *.db
 *.sqlite
 *.sqlite3
+downloads/
 
 # Python缓存
 __pycache__/

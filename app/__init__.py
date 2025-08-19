@@ -10,6 +10,8 @@ from .routes.tasks import tasks_bp
 from .routes.scheduled_tasks import scheduled_tasks_bp
 from .routes.utils import utils_bp
 from .routes.events import events_bp
+from .routes.downloads import downloads_bp
+from .routes.downloads_page import downloads_page_bp
 
 
 def create_app() -> Flask:
@@ -77,6 +79,12 @@ def create_app() -> Flask:
         
         app.register_blueprint(events_bp, url_prefix='/api')
         print("✅ events_bp 注册成功")
+        
+        app.register_blueprint(downloads_bp, url_prefix='/api')
+        print("✅ downloads_bp 注册成功")
+        
+        app.register_blueprint(downloads_page_bp)
+        print("✅ downloads_page_bp 注册成功")
         
         print(f"蓝图注册完成，总共 {len(app.url_map._rules)} 个路由规则")
         

@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube视频下载</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .search-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            border: none;
+        }
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-gradient mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="container-fluid">
+            <a class="navbar-brand text-dark fw-bold" href="#" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                <i class="fas fa-shield-alt text-primary me-2"></i>声像监控平台
+            </a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link text-dark fw-semibold" href="/" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-search me-1"></i>YouTube搜索
+                </a>
+                <a class="nav-link text-dark fw-semibold" href="/events" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-calendar-alt me-1"></i>事件管理
+                </a>
+                <a class="nav-link active text-dark fw-semibold" href="/downloads" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-download me-1"></i>视频下载
+                </a>
+            </div>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item">
+                    <span class="nav-link text-dark fw-semibold" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <i class="fas fa-download me-1"></i>视频下载系统
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 页面标题 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="text-center mb-3">
+                    <i class="fas fa-download text-primary me-2"></i>YouTube视频下载
+                </h2>
+                <p class="text-center text-muted">输入YouTube视频链接，选择下载配置，轻松下载高质量视频</p>
+            </div>
+        </div>
+
+        <!-- 下载配置区域 -->
+        <div class="search-box">
+            <form id="downloadForm">
+                                 <div class="row">
+                     <div class="col-md-8">
+                         <div class="mb-3">
+                             <label for="videoUrl" class="form-label">
+                                 <i class="fas fa-link me-2"></i>YouTube视频链接
+                             </label>
+                             <input type="url" class="form-control" id="videoUrl" 
+                                    placeholder="请输入YouTube视频链接，例如：https://www.youtube.com/watch?v=..." 
+                                    required>
+                         </div>
+                     </div>
+                     <div class="col-md-4 d-flex align-items-end">
+                         <div class="d-grid w-100">
+                             <button type="submit" class="btn btn-primary btn-lg" id="extractBtn">
+                                 <i class="fas fa-search me-2"></i>提取信息
+                             </button>
+                         </div>
+                     </div>
+                 </div>
+                 <div class="row">
+                     <div class="col-md-12">
+                         <div class="mb-3">
+                             <label for="downloadPath" class="form-label">
+                                 <i class="fas fa-folder me-2"></i>下载目录
+                             </label>
+                             <div class="input-group">
+                                 <input type="text" class="form-control" id="downloadPath" 
+                                        placeholder="输入下载目录路径，例如：C:\Downloads 或 /home/user/downloads">
+                                 <button class="btn btn-outline-secondary" type="button" id="selectFolderBtn">
+                                     <i class="fas fa-folder-open me-1"></i>浏览目录
+                                 </button>
+                                 <button class="btn btn-outline-info" type="button" id="currentDirBtn">
+                                     <i class="fas fa-home me-1"></i>当前目录
+                                 </button>
+                             </div>
+                             <small class="form-text text-muted" id="folderHelpText">留空使用默认下载目录</small>
+                         </div>
+                     </div>
+                 </div>
+            </form>
+        </div>
+
+        <!-- 视频信息显示区域 -->
+        <div id="videoInfoSection" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>视频信息
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <img id="videoThumbnail" class="img-fluid rounded" alt="视频缩略图">
+                        </div>
+                        <div class="col-md-8">
+                            <h4 id="videoTitle" class="mb-3"></h4>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <p><strong>上传者：</strong><span id="videoUploader"></span></p>
+                                    <p><strong>时长：</strong><span id="videoDuration"></span></p>
+                                    <p><strong>观看次数：</strong><span id="videoViewCount"></span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>点赞数：</strong><span id="videoLikeCount"></span></p>
+                                    <p><strong>上传日期：</strong><span id="videoUploadDate"></span></p>
+                                    <p><strong>可用格式：</strong><span id="videoFormatsCount"></span></p>
+                                </div>
+                            </div>
+                                                         <p id="videoDescription" class="text-muted"></p>
+                             
+                             <!-- 可用格式选择 -->
+                             <div class="mt-3">
+                                 <h6><i class="fas fa-list me-2"></i>可用下载格式</h6>
+                                 <div id="availableFormats" class="row">
+                                     <!-- 格式选项将在这里动态生成 -->
+                                 </div>
+                             </div>
+                             
+                             <!-- 下载按钮 -->
+                             <div class="mt-4 text-center">
+                                 <button type="button" class="btn btn-success btn-lg" id="downloadBtn" disabled>
+                                     <i class="fas fa-download me-2"></i>开始下载
+                                 </button>
+                                 <small class="form-text text-muted d-block mt-2">请先选择下载格式</small>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+             </div>
+         </div>
+
+        <!-- 下载任务列表 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tasks me-2"></i>下载任务
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="downloadTasksList">
+                    <p class="text-muted text-center">暂无下载任务</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 已下载文件列表 -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-video me-2"></i>已下载文件
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="downloadedFilesList">
+                    <p class="text-muted text-center">正在加载文件列表...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let currentVideoInfo = null;
+        let currentDownloadTask = null;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+            loadDownloadedFiles();
+            loadDownloadTasks();
+        });
+
+        // 初始化页面
+        function initializePage() {
+            // 绑定表单提交事件
+            document.getElementById('downloadForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                extractVideoInfo();
+            });
+
+            // 绑定下载按钮事件
+            document.getElementById('downloadBtn').addEventListener('click', function() {
+                startDownload();
+            });
+
+            // 设置目录选择器
+            setupFolderSelector();
+        }
+
+        // 提取视频信息
+        async function extractVideoInfo() {
+            const url = document.getElementById('videoUrl').value.trim();
+            if (!url) {
+                alert('请输入YouTube视频链接');
+                return;
+            }
+
+            // 显示加载状态
+            const extractBtn = document.getElementById('extractBtn');
+            const originalText = extractBtn.innerHTML;
+            extractBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>提取中...';
+            extractBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/downloads/extract-info', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url: url })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentVideoInfo = result.video_info;
+                    displayVideoInfo(result.video_info);
+                    document.getElementById('downloadBtn').disabled = false;
+                } else {
+                    alert(result.error || '提取视频信息失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            } finally {
+                // 恢复按钮状态
+                extractBtn.innerHTML = originalText;
+                extractBtn.disabled = false;
+            }
+        }
+
+        // 显示视频信息
+        function displayVideoInfo(videoInfo) {
+            document.getElementById('videoTitle').textContent = videoInfo.title;
+            document.getElementById('videoUploader').textContent = videoInfo.uploader;
+            document.getElementById('videoDuration').textContent = formatDuration(videoInfo.duration);
+            document.getElementById('videoViewCount').textContent = formatNumber(videoInfo.view_count);
+            document.getElementById('videoLikeCount').textContent = formatNumber(videoInfo.like_count);
+            document.getElementById('videoUploadDate').textContent = formatUploadDate(videoInfo.upload_date);
+            document.getElementById('videoFormatsCount').textContent = videoInfo.formats.length + ' 种';
+            document.getElementById('videoDescription').textContent = videoInfo.description;
+
+            if (videoInfo.thumbnail) {
+                document.getElementById('videoThumbnail').src = videoInfo.thumbnail;
+            }
+
+            // 重置下载按钮状态
+            document.getElementById('downloadBtn').disabled = true;
+            document.querySelector('#downloadBtn').nextElementSibling.textContent = '请先选择下载格式';
+
+            // 显示可用格式选择
+            displayAvailableFormats(videoInfo.formats, videoInfo.predefined_formats);
+
+            document.getElementById('videoInfoSection').style.display = 'block';
+        }
+
+        // 开始下载
+        async function startDownload() {
+            if (!currentVideoInfo) {
+                alert('请先提取视频信息');
+                return;
+            }
+
+            const url = document.getElementById('videoUrl').value.trim();
+            const format = getSelectedFormat(); // 使用选中的格式
+            const downloadPath = document.getElementById('downloadPath').value.trim();
+
+            // 验证下载路径（可选）
+            if (downloadPath) {
+                // 这里可以添加路径验证逻辑
+                console.log('使用自定义下载路径:', downloadPath);
+            } else {
+                console.log('使用默认下载路径');
+            }
+
+            try {
+                const response = await fetch('/api/downloads/start', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        url: url,
+                        format: format,
+                        download_path: downloadPath
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentDownloadTask = result.task_id;
+                    alert('下载任务已启动！');
+                    loadDownloadTasks();
+                } else {
+                    alert(result.error || '启动下载失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 加载下载任务列表
+        async function loadDownloadTasks() {
+            try {
+                const response = await fetch('/api/downloads/tasks');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayDownloadTasks(result.tasks);
+                }
+            } catch (error) {
+                console.error('加载下载任务失败:', error);
+            }
+        }
+
+        // 显示下载任务列表
+        function displayDownloadTasks(tasks) {
+            const container = document.getElementById('downloadTasksList');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">暂无下载任务</p>';
+                return;
+            }
+
+            let html = '';
+            tasks.forEach(task => {
+                const statusClass = getStatusClass(task.status);
+                const statusIcon = getStatusIcon(task.status);
+                
+                html += `
+                    <div class="alert alert-${statusClass}">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">${task.url}</h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>${formatDateTime(task.start_time)}
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <span class="badge bg-${statusClass}">
+                                    <i class="${statusIcon} me-1"></i>${getStatusText(task.status)}
+                                </span>
+                                ${task.status === 'downloading' ? `
+                                    <div class="progress mt-2">
+                                        <div class="progress-bar" style="width: ${task.progress}%"></div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        ${task.error ? `<p class="text-danger mt-2 mb-0"><small>${task.error}</small></p>` : ''}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 加载已下载文件列表
+        async function loadDownloadedFiles() {
+            try {
+                const response = await fetch('/api/downloads/files');
+                const result = await response.json();
+
+                if (result.success) {
+                    displayDownloadedFiles(result.files);
+                }
+            } catch (error) {
+                console.error('加载文件列表失败:', error);
+            }
+        }
+
+        // 显示已下载文件列表
+        function displayDownloadedFiles(files) {
+            const container = document.getElementById('downloadedFilesList');
+            
+            if (files.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">暂无下载文件</p>';
+                return;
+            }
+
+            let html = '';
+            files.forEach(file => {
+                html += `
+                    <div class="alert alert-light">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6 class="mb-1">
+                                    <i class="fas fa-file-video text-primary me-2"></i>${file.name}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>${formatDateTime(file.created_time)}
+                                    <i class="fas fa-weight-hanging ms-3 me-1"></i>${file.size_mb} MB
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="/api/downloads/download/${encodeURIComponent(file.name)}" 
+                                       class="btn btn-outline-primary" title="下载文件">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="deleteFile('${file.name}')" title="删除文件">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 删除文件
+        async function deleteFile(filename) {
+            if (!confirm(`确定要删除文件 "${filename}" 吗？`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/downloads/delete/${encodeURIComponent(filename)}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    loadDownloadedFiles();
+                } else {
+                    alert(result.error || '删除文件失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 获取状态样式类
+        function getStatusClass(status) {
+            switch (status) {
+                case 'starting': return 'info';
+                case 'downloading': return 'warning';
+                case 'completed': return 'success';
+                case 'failed': return 'danger';
+                case 'cancelled': return 'secondary';
+                default: return 'secondary';
+            }
+        }
+
+        // 获取状态图标
+        function getStatusIcon(status) {
+            switch (status) {
+                case 'starting': return 'fas fa-play';
+                case 'downloading': return 'fas fa-download';
+                case 'completed': return 'fas fa-check';
+                case 'failed': return 'fas fa-times';
+                case 'cancelled': return 'fas fa-ban';
+                default: return 'fas fa-question';
+            }
+        }
+
+        // 获取状态文本
+        function getStatusText(status) {
+            switch (status) {
+                case 'starting': return '启动中';
+                case 'downloading': return '下载中';
+                case 'completed': return '已完成';
+                case 'failed': return '失败';
+                case 'cancelled': return '已取消';
+                default: return '未知';
+            }
+        }
+
+        // 格式化时长
+        function formatDuration(seconds) {
+            if (!seconds) return '未知';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+        }
+
+        // 格式化数字
+        function formatNumber(num) {
+            if (!num) return '0';
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        // 格式化上传日期
+        function formatUploadDate(dateStr) {
+            if (!dateStr) return '未知';
+            try {
+                const year = dateStr.substring(0, 4);
+                const month = dateStr.substring(4, 6);
+                const day = dateStr.substring(6, 8);
+                return `${year}-${month}-${day}`;
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '未知';
+            try {
+                const date = new Date(dateTimeStr);
+                return date.toLocaleString('zh-CN');
+            } catch (e) {
+                return dateTimeStr;
+            }
+        }
+
+        // 显示可用格式选择
+        function displayAvailableFormats(availableFormats, predefinedFormats) {
+            const container = document.getElementById('availableFormats');
+            
+            let html = '';
+            
+            // 显示预定义格式
+            if (predefinedFormats && predefinedFormats.length > 0) {
+                html += '<div class="col-12 mb-3">';
+                html += '<h6 class="text-primary">预定义格式</h6>';
+                html += '<div class="row">';
+                
+                predefinedFormats.forEach(format => {
+                    html += `
+                        <div class="col-md-4 mb-2">
+                            <div class="card border-primary">
+                                <div class="card-body p-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="formatSelection" 
+                                               id="format_${format.id}" value="${format.id}">
+                                        <label class="form-check-label" for="format_${format.id}">
+                                            <strong>${format.name}</strong>
+                                            <br><small class="text-muted">${format.description}</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            }
+            
+            // 显示可用格式
+            if (availableFormats && availableFormats.length > 0) {
+                html += '<div class="col-12">';
+                html += '<h6 class="text-success">检测到的可用格式</h6>';
+                html += '<div class="row">';
+                
+                availableFormats.slice(0, 12).forEach(format => { // 只显示前12个格式
+                    const quality = format.quality || 0;
+                    const qualityClass = quality > 800 ? 'text-success' : quality > 600 ? 'text-warning' : 'text-muted';
+                    
+                    html += `
+                        <div class="col-md-6 mb-2">
+                            <div class="card border-secondary">
+                                <div class="card-body p-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="formatSelection" 
+                                               id="format_${format.format_id}" value="${format.format_id}">
+                                        <label class="form-check-label" for="format_${format.format_id}">
+                                            <strong>${format.resolution || '未知分辨率'}</strong>
+                                            <br><small class="text-muted">
+                                                ${format.ext.toUpperCase()} | ${format.fps || 0}fps | 
+                                                <span class="${qualityClass}">质量: ${quality}</span>
+                                            </small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div></div>';
+            }
+            
+            container.innerHTML = html;
+            
+            // 设置默认选择
+            if (predefinedFormats && predefinedFormats.length > 0) {
+                document.getElementById('format_best').checked = true;
+            }
+            
+            // 添加格式选择事件监听器
+            addFormatSelectionListeners();
+        }
+
+        // 获取选中的格式
+        function getSelectedFormat() {
+            const selectedFormat = document.querySelector('input[name="formatSelection"]:checked');
+            return selectedFormat ? selectedFormat.value : 'best';
+        }
+
+        // 添加格式选择事件监听器
+        function addFormatSelectionListeners() {
+            const formatInputs = document.querySelectorAll('input[name="formatSelection"]');
+            formatInputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    // 启用下载按钮
+                    document.getElementById('downloadBtn').disabled = false;
+                    
+                    // 更新提示文本
+                    const selectedFormat = getSelectedFormat();
+                    const formatText = this.nextElementSibling.querySelector('strong').textContent;
+                    document.querySelector('#downloadBtn').nextElementSibling.textContent = 
+                        `已选择格式: ${formatText}`;
+                });
+            });
+        }
+
+        // 改进的目录选择器（实现真正的路径选择）
+        function setupFolderSelector() {
+            const selectFolderBtn = document.getElementById('selectFolderBtn');
+            const currentDirBtn = document.getElementById('currentDirBtn');
+            const downloadPathInput = document.getElementById('downloadPath');
+            const helpText = document.getElementById('folderHelpText');
+
+            // 浏览目录按钮 - 使用系统文件对话框
+            selectFolderBtn.addEventListener('click', function() {
+                // 尝试使用现代浏览器的目录选择API
+                if (window.showDirectoryPicker) {
+                    // 现代浏览器的目录选择器
+                    window.showDirectoryPicker()
+                        .then(dirHandle => {
+                            // 获取目录路径（如果支持）
+                            if (dirHandle.name) {
+                                downloadPathInput.value = dirHandle.name;
+                                helpText.textContent = `已选择目录: ${dirHandle.name}`;
+                                helpText.className = 'form-text text-success';
+                            }
+                        })
+                        .catch(err => {
+                            console.log('目录选择器不可用，使用手动输入');
+                            showManualInputDialog();
+                        });
+                } else {
+                    // 降级方案：手动输入路径
+                    showManualInputDialog();
+                }
+            });
+
+            // 当前目录按钮
+            currentDirBtn.addEventListener('click', function() {
+                // 获取当前工作目录（如果可能）
+                const currentPath = getCurrentWorkingDirectory();
+                if (currentPath) {
+                    downloadPathInput.value = currentPath;
+                    helpText.textContent = `已设置当前目录: ${currentPath}`;
+                    helpText.className = 'form-text text-success';
+                } else {
+                    // 如果无法获取当前目录，提供默认路径
+                    const defaultPath = getDefaultDownloadPath();
+                    downloadPathInput.value = defaultPath;
+                    helpText.textContent = `已设置默认目录: ${defaultPath}`;
+                    helpText.className = 'form-text text-success';
+                }
+            });
+
+            // 手动输入对话框
+            function showManualInputDialog() {
+                const path = prompt('请输入下载目录路径:\n\n例如：\nWindows: C:\\Downloads\nLinux/Mac: /home/user/downloads');
+                if (path && path.trim()) {
+                    const cleanPath = path.trim();
+                    downloadPathInput.value = cleanPath;
+                    helpText.textContent = `已设置目录: ${cleanPath}`;
+                    helpText.className = 'form-text text-success';
+                    
+                    // 验证路径格式
+                    validatePathFormat(cleanPath);
+                }
+            }
+
+            // 路径格式验证
+            function validatePathFormat(path) {
+                const windowsPattern = /^[A-Za-z]:\\([^<>:"|?*]+\\)*[^<>:"|?*]*$/;
+                const unixPattern = /^\/[^<>:"|?*]*$/;
+                
+                if (windowsPattern.test(path) || unixPattern.test(path)) {
+                    helpText.className = 'form-text text-success';
+                } else {
+                    helpText.className = 'form-text text-warning';
+                    helpText.textContent = `已设置目录: ${path} (路径格式可能不正确)`;
+                }
+            }
+
+            // 获取当前工作目录
+            function getCurrentWorkingDirectory() {
+                // 尝试获取当前目录（这在实际浏览器环境中可能不可用）
+                try {
+                    // 这里可以添加获取当前目录的逻辑
+                    return null;
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            // 获取默认下载路径
+            function getDefaultDownloadPath() {
+                // 根据操作系统提供默认路径
+                if (navigator.platform.indexOf('Win') !== -1) {
+                    return 'C:\\Downloads';
+                } else if (navigator.platform.indexOf('Mac') !== -1) {
+                    return '/Users/Downloads';
+                } else {
+                    return '/home/user/downloads';
+                }
+            }
+
+            // 添加清除按钮功能
+            const clearBtn = document.createElement('button');
+            clearBtn.type = 'button';
+            clearBtn.className = 'btn btn-outline-danger';
+            clearBtn.innerHTML = '<i class="fas fa-times me-1"></i>清除';
+            clearBtn.addEventListener('click', function() {
+                downloadPathInput.value = '';
+                helpText.textContent = '留空使用默认下载目录';
+                helpText.className = 'form-text text-muted';
+            });
+            
+            // 将清除按钮添加到输入组
+            const inputGroup = document.querySelector('.input-group');
+            inputGroup.appendChild(clearBtn);
+
+            // 添加输入框验证
+            downloadPathInput.addEventListener('input', function() {
+                const path = this.value.trim();
+                if (path) {
+                    validatePathFormat(path);
+                } else {
+                    helpText.textContent = '留空使用默认下载目录';
+                    helpText.className = 'form-text text-muted';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
