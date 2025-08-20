@@ -86,6 +86,18 @@ def create_app() -> Flask:
         app.register_blueprint(downloads_page_bp)
         print("✅ downloads_page_bp 注册成功")
         
+        # 注册爬虫模块蓝图
+        try:
+            from .routes.crawler import crawler_bp
+            from .routes.crawler_page import crawler_page_bp
+            app.register_blueprint(crawler_bp)
+            app.register_blueprint(crawler_page_bp)
+            print("✅ 爬虫模块蓝图注册成功")
+        except Exception as e:
+            print(f"❌ 爬虫模块蓝图注册失败: {e}")
+            import traceback
+            traceback.print_exc()
+        
         print(f"蓝图注册完成，总共 {len(app.url_map._rules)} 个路由规则")
         
     except Exception as e:

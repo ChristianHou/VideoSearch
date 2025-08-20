@@ -313,6 +313,7 @@ class TaskScheduler:
                 video_definition=search_task.video_definition,
                 video_type=search_task.video_type,
                 video_syndicated=search_task.video_syndicated,
+                order_by=search_task.order_by,  # 新增：排序方式
             )
             
             if result.get('success'):
@@ -323,9 +324,16 @@ class TaskScheduler:
                 execution_result.result_data = result['data']
                 execution_result.videos_count = result['data'].get('pageInfo', {}).get('totalResults', 0)
                 
-                # 保存视频信息
-                if 'items' in result['data']:
-                    for i, video_data in enumerate(result['data']['items']):
+                # 使用内容过滤服务过滤新视频
+                from .services.content_filter_service import content_filter_service
+                new_videos, all_videos = content_filter_service.filter_new_videos(scheduled_task_id, result['data'])
+                
+                # 更新执行结果，记录新视频数量
+                execution_result.videos_count = len(new_videos)
+                
+                # 保存视频信息（只保存新视频）
+                if new_videos:
+                    for i, video_data in enumerate(new_videos):
                         try:
                             # 保存视频基本信息
                             video_id = video_data.get('id', {}).get('videoId')
@@ -405,40 +413,39 @@ class TaskScheduler:
                             print(f"保存视频信息失败: {video_error}")
                             continue
                 
+                # 提交所有更改
                 db.commit()
-                print(f"定时任务 {scheduled_task_id} 执行成功，找到 {execution_result.videos_count} 个视频")
+                print(f"定时任务 {scheduled_task_id} 执行完成，保存了 {len(new_videos)} 个新视频")
                 
-                # 发送飞书消息
-                try:
-                    feishu_service = get_feishu_service()
-                    if feishu_service:
-                        # 获取前25个视频用于发送到飞书
-                        video_executions = db.query(VideoExecutionResult).filter(
-                            VideoExecutionResult.scheduled_execution_result_id == execution_result.id
-                        ).order_by(VideoExecutionResult.rank).limit(25).all()
-                        
-                        videos = [ve.video for ve in video_executions if ve.video]
-                        if videos:
-                            execution_time = execution_result.completed_at.strftime("%Y-%m-%d %H:%M:%S")
-                            task_name = f"定时任务 {scheduled_task_id} - {search_task.query}"
+                # 发送飞书通知（只推送新内容）
+                if new_videos:
+                    try:
+                        from .services.feishu_service import get_feishu_service
+                        feishu_service = get_feishu_service()
+                        if feishu_service:
+                            # 将新视频数据转换为VideoInfo对象列表
+                            new_video_objects = []
+                            for video_data in new_videos:
+                                video_id = video_data.get('id', {}).get('videoId')
+                                if video_id:
+                                    # 查询数据库中的视频信息
+                                    video_info = db.query(VideoInfo).filter_by(video_id=video_id).first()
+                                    if video_info:
+                                        new_video_objects.append(video_info)
                             
-                            success = feishu_service.send_task_execution_result(
-                                task_name=task_name,
-                                videos=videos,
-                                execution_time=execution_time,
-                                total_count=execution_result.videos_count
-                            )
-                            
-                            if success:
-                                print(f"飞书消息发送成功，任务: {task_name}")
-                            else:
-                                print(f"飞书消息发送失败，任务: {task_name}")
-                        else:
-                            print("没有找到视频信息，跳过飞书消息发送")
-                    else:
-                        print("飞书服务未初始化，跳过消息发送")
-                except Exception as feishu_error:
-                    print(f"发送飞书消息时出错: {feishu_error}")
+                            if new_video_objects:
+                                feishu_service.send_task_execution_result(
+                                    task_name=search_task.query,
+                                    videos=new_video_objects,
+                                    execution_time=execution_result.completed_at.strftime('%Y-%m-%d %H:%M:%S'),
+                                    total_count=len(all_videos),
+                                    new_count=len(new_videos)
+                                )
+                                print(f"飞书通知发送成功，推送了 {len(new_videos)} 个新视频")
+                    except Exception as feishu_error:
+                        print(f"发送飞书通知失败: {feishu_error}")
+                else:
+                    print(f"定时任务 {scheduled_task_id} 没有发现新内容，跳过飞书推送")
                 
             else:
                 # 搜索失败

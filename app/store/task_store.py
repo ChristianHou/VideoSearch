@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import datetime
 import uuid
-from typing import Dict, Optional, List
+import datetime
+from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from ..database import db_manager
 from ..models import Task, ExecutionResult, VideoInfo, VideoExecutionResult
+from ..services.translate_service import get_translate_service
 
 # 东八区时区
 EAST_8_TZ = datetime.timezone(datetime.timedelta(hours=8))
@@ -36,6 +37,7 @@ def create_task(data: dict) -> dict:
             video_license=data.get('video_license'),
             video_syndicated=data.get('video_syndicated'),
             video_type=data.get('video_type'),
+            order_by=data.get('order_by', 'relevance'),  # 新增：排序方式
             status="pending"
         )
         
@@ -109,21 +111,30 @@ def mark_task_completed(task_id: str, results: dict):
             )
             
             db.add(execution_result)
+            db.flush()  # 确保execution_result.id被设置
             
-            # 保存视频信息
+            # 保存视频信息（不包含翻译）
+            video_id_list = []  # 改为保存视频ID列表
             if 'items' in results:
                 for i, video_data in enumerate(results['items']):
-                    video_info = _save_video_info(video_data, db)
+                    video_info = _save_video_info_basic(video_data, db)
                     if video_info:
                         # 创建视频与执行结果的关联
                         video_execution = VideoExecutionResult(
                             video_id=video_info.id,
                             execution_result_id=execution_result.id,
+                            scheduled_execution_result_id=None,  # 明确设置为None
                             rank=i + 1
                         )
                         db.add(video_execution)
+                        video_id_list.append(video_info.id)  # 保存视频ID而不是对象
             
+            # 提交数据库事务，确保所有数据都被保存
             db.commit()
+            
+            # 在单独的会话中进行翻译操作，传递视频ID列表
+            _translate_videos_async(video_id_list)
+            
     except Exception as e:
         db.rollback()
         raise e
@@ -187,6 +198,7 @@ def _task_to_dict(task: Task) -> dict:
         "video_license": task.video_license,
         "video_syndicated": task.video_syndicated,
         "video_type": task.video_type,
+        "order_by": task.order_by,  # 新增：排序方式
         "status": task.status,
         "created_at": task.created_at.isoformat() if task.created_at else None,
         "updated_at": task.updated_at.isoformat() if task.updated_at else None,
@@ -212,6 +224,21 @@ def get_task_with_results(task_id: str) -> Optional[dict]:
             latest_execution = sorted(task.execution_results, key=lambda x: x.completed_at or x.started_at, reverse=True)[0]
             if latest_execution.status == 'success':
                 latest_result = latest_execution.result_data
+                
+                # 获取视频信息，包括翻译后的标题和描述
+                if 'items' in latest_result:
+                    for item in latest_result['items']:
+                        video_id = item.get('id', {}).get('videoId')
+                        if video_id:
+                            # 查询数据库中的视频信息
+                            video_info = db.query(VideoInfo).filter(VideoInfo.video_id == video_id).first()
+                            if video_info and video_info.translated_title:
+                                # 添加翻译后的标题和描述到结果中
+                                if 'snippet' in item:
+                                    item['snippet']['translated_title'] = video_info.translated_title
+                                    if video_info.translated_description:
+                                        item['snippet']['translated_description'] = video_info.translated_description
+                
             elif latest_execution.status == 'failed':
                 error_message = latest_execution.error_message
         
@@ -225,8 +252,8 @@ def get_task_with_results(task_id: str) -> Optional[dict]:
         db.close()
 
 
-def _save_video_info(video_data: dict, db: Session) -> Optional[VideoInfo]:
-    """保存视频信息到数据库"""
+def _save_video_info_basic(video_data: dict, db: Session) -> Optional[VideoInfo]:
+    """保存视频基本信息到数据库（不包含翻译）"""
     try:
         video_id = video_data.get('id', {}).get('videoId')
         if not video_id:
@@ -262,6 +289,73 @@ def _save_video_info(video_data: dict, db: Session) -> Optional[VideoInfo]:
         db.add(video_info)
         db.flush()  # 获取ID但不提交
         return video_info
+        
     except Exception as e:
-        print(f"保存视频信息失败: {e}")
+        print(f"保存视频基本信息失败: {e}")
         return None
+
+
+def _translate_videos_async(video_id_list: List[int]):
+    """异步翻译视频信息"""
+    if not video_id_list:
+        return
+    
+    # 在新线程中执行翻译，避免阻塞主流程
+    import threading
+    
+    def translate_worker():
+        try:
+            translate_service = get_translate_service()
+            if not translate_service:
+                return
+            
+            # 创建新的数据库会话进行翻译更新
+            db = db_manager.get_session()
+            try:
+                for video_db_id in video_id_list:
+                    current_video = None
+                    try:
+                        # 重新查询视频信息，确保在正确的会话中
+                        # 这里应该用数据库主键ID查询，不是video_id字段
+                        current_video = db.query(VideoInfo).filter(VideoInfo.id == video_db_id).first()
+                        if not current_video:
+                            print(f"视频ID {video_db_id} 在数据库中不存在，跳过翻译")
+                            continue
+                        
+                        # 翻译标题
+                        if current_video.title and not current_video.translated_title:
+                            translated_title = translate_service.translate_text(current_video.title, 'zh')
+                            if translated_title:
+                                current_video.translated_title = translated_title
+                                print(f"标题翻译: '{current_video.title}' -> '{translated_title}'")
+                        
+                        # 翻译描述
+                        if current_video.description and not current_video.translated_description:
+                            # 限制描述长度，避免翻译过长的文本
+                            description_text = current_video.description[:500] if len(current_video.description) > 500 else current_video.description
+                            translated_description = translate_service.translate_text(description_text, 'zh')
+                            if translated_description:
+                                current_video.translated_description = translated_description
+                                print(f"描述翻译: '{description_text[:50]}...' -> '{translated_description[:50]}...'")
+                        
+                    except Exception as video_error:
+                        print(f"翻译视频ID {video_db_id} 时出错: {video_error}")
+                        continue
+                
+                # 提交翻译结果
+                db.commit()
+                print(f"成功翻译 {len(video_id_list)} 个视频")
+                
+            except Exception as e:
+                print(f"翻译过程中出错: {e}")
+                db.rollback()
+            finally:
+                db.close()
+                
+        except Exception as e:
+            print(f"翻译服务初始化失败: {e}")
+    
+    # 启动翻译线程
+    translate_thread = threading.Thread(target=translate_worker)
+    translate_thread.daemon = True
+    translate_thread.start()

@@ -173,9 +173,12 @@
                     <a class="nav-link text-dark fw-semibold" href="/events" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
                         <i class="fas fa-calendar-alt me-1"></i>事件管理
                     </a>
-                    <a class="nav-link text-dark fw-semibold" href="/downloads" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
-                        <i class="fas fa-download me-1"></i>视频下载
-                    </a>
+                                            <a class="nav-link text-dark fw-semibold" href="/downloads" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                            <i class="fas fa-download me-1"></i>视频下载
+                        </a>
+                        <a class="nav-link text-dark fw-semibold" href="/crawler" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                            <i class="fas fa-spider me-1"></i>视频爬虫
+                        </a>
                 </div>
                 <div class="navbar-nav ms-auto">
                     <!-- 语言切换按钮 -->
@@ -275,6 +278,28 @@
                                 <option value="movie">电影</option>
                                 <option value="episode">剧集</option>
                                 <option value="any">任意</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="order_by" class="form-label">排序方式</label>
+                            <select class="form-select" id="order_by" name="order_by">
+                                <option value="relevance" selected>相关性</option>
+                                <option value="date">发布日期</option>
+                                <option value="viewCount">观看次数</option>
+                                <option value="rating">评分</option>
+                                <option value="title">标题</option>
+                                <option value="videoCount">视频数量</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="video_embeddable" class="form-label">可嵌入</label>
+                            <select class="form-select" id="video_embeddable" name="video_embeddable">
+                                <option value="">任意</option>
+                                <option value="true">是</option>
+                                <option value="false">否</option>
                             </select>
                         </div>
                     </div>
@@ -704,6 +729,7 @@
                 if (task.video_duration) searchParams.push(`时长: ${getVideoDurationText(task.video_duration)}`);
                 if (task.video_definition) searchParams.push(`质量: ${getVideoDefinitionText(task.video_definition)}`);
                 if (task.video_type) searchParams.push(`类型: ${getVideoTypeText(task.video_type)}`);
+                if (task.order_by) searchParams.push(`排序: ${getOrderByText(task.order_by)}`);  // 新增：排序方式
                 
                 // 构建发布时间区间显示
                 let dateRange = '';
@@ -830,6 +856,11 @@
                     const task = data.task;
                     const modalBody = document.getElementById('taskModalBody');
                     
+                    // 保存当前任务结果，用于语言切换
+                    if (task.status === 'completed' && task.results) {
+                        window.currentTaskResults = task.results;
+                    }
+                    
                     modalBody.innerHTML = `
                         <div class="row">
                             <div class="col-md-6">
@@ -850,6 +881,7 @@
                                     <tr><td>视频时长:</td><td>${task.video_duration || '未设置'}</td></tr>
                                     <tr><td>视频质量:</td><td>${task.video_definition || '未设置'}</td></tr>
                                     <tr><td>视频类型:</td><td>${task.video_type || '未设置'}</td></tr>
+                                    <tr><td>排序方式:</td><td>${getOrderByText(task.order_by) || '未设置'}</td></tr>
                                 </table>
                             </div>
                         </div>
@@ -857,7 +889,23 @@
                         ${task.status === 'completed' && task.results ? `
                             <hr>
                             <h6>搜索结果 (共${task.results.pageInfo?.totalResults || 0}个结果)</h6>
-                            <div class="results-container">
+                            
+                            <!-- 语言切换按钮 -->
+                            <div class="mb-3">
+                                <div class="btn-group" role="group" aria-label="搜索结果语言切换">
+                                    <button type="button" class="btn btn-outline-primary active" onclick="switchTaskResultsLanguage('original')" id="task-lang-original">
+                                        <i class="fas fa-language me-1"></i>原文
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="switchTaskResultsLanguage('translated')" id="task-lang-translated">
+                                        <i class="fas fa-language me-1"></i>译文
+                                    </button>
+                                    <button type="button" class="btn btn-outline-primary" onclick="switchTaskResultsLanguage('both')" id="task-lang-both">
+                                        <i class="fas fa-language me-1"></i>双语
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="results-container" id="taskResultsContainer">
                                 ${renderSearchResults(task.results)}
                             </div>
                         ` : ''}
@@ -1973,11 +2021,21 @@
             }
             
             let translatedTitle = '';
-            if (video.translated_title) {
+            // 检查多个可能的位置来获取翻译后的标题
+            if (video.snippet && video.snippet.translated_title) {
+                translatedTitle = video.snippet.translated_title;
+            } else if (video.translated_title) {
                 translatedTitle = video.translated_title;
             }
             
-            return getBilingualText(title, translatedTitle);
+            // 根据当前语言设置返回相应的标题
+            if (taskResultsLanguage === 'translated' && translatedTitle) {
+                return translatedTitle;
+            } else if (taskResultsLanguage === 'both' && translatedTitle) {
+                return `${translatedTitle}（${title}）`;
+            } else {
+                return title;
+            }
         }
         
         function getBilingualDescription(video) {
@@ -1989,11 +2047,21 @@
             }
             
             let translatedDescription = '';
-            if (video.translated_description) {
+            // 检查多个可能的位置来获取翻译后的描述
+            if (video.snippet && video.snippet.translated_description) {
+                translatedDescription = video.snippet.translated_description;
+            } else if (video.translated_description) {
                 translatedDescription = video.translated_description;
             }
             
-            return getBilingualText(description, translatedDescription);
+            // 根据当前语言设置返回相应的描述
+            if (taskResultsLanguage === 'translated' && translatedDescription) {
+                return translatedDescription;
+            } else if (taskResultsLanguage === 'both' && translatedDescription) {
+                return `${translatedDescription}（${description}）`;
+            } else {
+                return description;
+            }
         }
         
         // 页面加载时初始化语言设置
@@ -2056,6 +2124,42 @@
                 }
                 return video.description || '无描述';
             }
+
+        // 普通搜索任务结果的语言切换功能
+        let taskResultsLanguage = 'both'; // 默认双语显示
+        
+        function switchTaskResultsLanguage(language) {
+            taskResultsLanguage = language;
+            
+            // 更新按钮状态
+            document.getElementById('task-lang-original').classList.remove('active');
+            document.getElementById('task-lang-translated').classList.remove('active');
+            document.getElementById('task-lang-both').classList.remove('active');
+            
+            const targetBtn = document.getElementById(`task-lang-${language}`);
+            if (targetBtn) {
+                targetBtn.classList.add('active');
+            }
+            
+            // 重新渲染搜索结果
+            const container = document.getElementById('taskResultsContainer');
+            if (container && window.currentTaskResults) {
+                container.innerHTML = renderSearchResults(window.currentTaskResults);
+            }
+        }
+        
+        // 获取排序方式文本
+        function getOrderByText(orderBy) {
+            const orderMap = {
+                'relevance': '相关性',
+                'date': '发布日期',
+                'viewCount': '观看次数',
+                'rating': '评分',
+                'title': '标题',
+                'videoCount': '视频数量'
+            };
+            return orderMap[orderBy] || orderBy;
+        }
     </script>
 </body>
 </html>

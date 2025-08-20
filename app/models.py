@@ -34,6 +34,7 @@ class Task(Base):
     video_license = Column(String(20))
     video_syndicated = Column(Boolean)
     video_type = Column(String(20))
+    order_by = Column(String(20), default='relevance')  # 新增：排序方式 (relevance, date, viewCount, rating, title, videoCount)
     status = Column(String(20), default='pending', index=True)
     created_at = Column(DateTime, default=get_east8_time)
     updated_at = Column(DateTime, default=get_east8_time, onupdate=get_east8_time)
@@ -241,3 +242,82 @@ class EventScheduledTask(Base):
     # 关联关系
     event = relationship("Event", back_populates="event_scheduled_tasks")
     scheduled_task = relationship("ScheduledTask")
+
+class CrawlWebsite(Base):
+    """爬取网站表"""
+    __tablename__ = 'crawl_websites'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, comment='网站名称')
+    url = Column(String(500), nullable=False, comment='网站URL')
+    description = Column(Text, comment='网站描述')
+    crawl_pattern = Column(String(500), comment='爬取模式/规则')
+    crawl_config = Column(Text, comment='爬取配置（JSON格式）')
+    is_active = Column(Boolean, default=True, comment='是否启用')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+
+class CrawlTask(Base):
+    """爬取任务表"""
+    __tablename__ = 'crawl_tasks'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, comment='任务名称')
+    website_id = Column(Integer, ForeignKey('crawl_websites.id'), nullable=False, comment='关联网站ID')
+    task_type = Column(String(50), default='manual', comment='任务类型：manual(手动), scheduled(定时)')
+    status = Column(String(50), default='pending', comment='任务状态：pending(待执行), running(执行中), completed(已完成), failed(失败)')
+    crawl_config = Column(Text, comment='爬取配置(JSON格式)')
+    scheduled_time = Column(DateTime, comment='计划执行时间')
+    started_at = Column(DateTime, comment='开始时间')
+    completed_at = Column(DateTime, comment='完成时间')
+    total_videos = Column(Integer, default=0, comment='爬取到的视频总数')
+    error_message = Column(Text, comment='错误信息')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    
+    # 关联关系
+    website = relationship('CrawlWebsite', backref='tasks')
+
+class CrawlVideo(Base):
+    """爬取视频信息表"""
+    __tablename__ = 'crawl_videos'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    task_id = Column(Integer, ForeignKey('crawl_tasks.id'), nullable=False, comment='关联任务ID')
+    website_id = Column(Integer, ForeignKey('crawl_websites.id'), nullable=False, comment='关联网站ID')
+    video_title = Column(String(500), nullable=False, comment='视频标题')
+    video_url = Column(String(1000), nullable=False, comment='视频链接')
+    video_description = Column(Text, comment='视频简介')
+    thumbnail_url = Column(String(1000), comment='缩略图URL')
+    duration = Column(String(100), comment='视频时长')
+    upload_date = Column(String(100), comment='上传日期')
+    view_count = Column(String(100), comment='观看次数')
+    like_count = Column(String(100), comment='点赞数')
+    # 双语字段
+    translated_title = Column(String(500), comment='翻译后的标题')
+    translated_description = Column(Text, comment='翻译后的简介')
+    language = Column(String(10), default='zh-CN', comment='翻译语言')
+    crawl_time = Column(DateTime, default=datetime.utcnow, comment='爬取时间')
+    
+    # 关联关系
+    task = relationship('CrawlTask', backref='videos')
+    website = relationship('CrawlWebsite', backref='videos')
+
+class CrawlScheduledTask(Base):
+    """爬取定时任务表"""
+    __tablename__ = 'crawl_scheduled_tasks'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(255), nullable=False, comment='定时任务名称')
+    website_id = Column(Integer, ForeignKey('crawl_websites.id'), nullable=False, comment='关联网站ID')
+    schedule_type = Column(String(50), nullable=False, comment='调度类型：interval(间隔), cron(定时)')
+    schedule_value = Column(String(100), nullable=False, comment='调度值：间隔时间或cron表达式')
+    is_active = Column(Boolean, default=True, comment='是否启用')
+    last_run = Column(DateTime, comment='上次运行时间')
+    next_run = Column(DateTime, comment='下次运行时间')
+    total_runs = Column(Integer, default=0, comment='总运行次数')
+    created_at = Column(DateTime, default=datetime.utcnow, comment='创建时间')
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment='更新时间')
+    
+    # 关联关系
+    website = relationship('CrawlWebsite', backref='scheduled_tasks')

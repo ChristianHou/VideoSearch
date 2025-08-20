@@ -66,7 +66,7 @@ class YouTubeSearchAPI:
     def search_videos(self, query, max_results=25, published_after=None,
                       published_before=None, region_code=None, relevance_language=None,
                       video_duration=None, video_definition=None, video_embeddable=None,
-                      video_license=None, video_syndicated=None, video_type=None):
+                      video_license=None, video_syndicated=None, video_type=None, order_by='relevance'):
         if not self.youtube:
             return {"error": "API未认证"}
 
@@ -79,7 +79,8 @@ class YouTubeSearchAPI:
                     'part': 'snippet',
                     'q': query,
                     'maxResults': max_results,
-                    'type': 'video'
+                    'type': 'video',
+                    'order': order_by  # 新增：排序参数
                 }
 
                 if published_after:

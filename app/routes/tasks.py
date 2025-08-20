@@ -60,6 +60,7 @@ def execute_task(task_id: str):
             video_license=task.get('video_license'),
             video_syndicated=task.get('video_syndicated'),
             video_type=task.get('video_type'),
+            order_by=task.get('order_by', 'relevance'),  # 新增：排序方式
         )
 
         if result.get('success'):

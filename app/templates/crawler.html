@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频爬虫管理</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .search-box {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            border-radius: 12px 12px 0 0 !important;
+            border: none;
+        }
+        .navbar-brand {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+        .video-card {
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: translateY(-2px);
+        }
+        .language-toggle {
+            cursor: pointer;
+            color: #007bff;
+            text-decoration: underline;
+        }
+        .translated-text {
+            display: none;
+        }
+        .show-translated .original-text {
+            display: none;
+        }
+        .show-translated .translated-text {
+            display: inline;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-gradient mb-4" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+        <div class="container-fluid">
+            <a class="navbar-brand text-dark fw-bold" href="#" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                <i class="fas fa-shield-alt text-primary me-2"></i>声像监控平台
+            </a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link text-dark fw-semibold" href="/" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-search me-1"></i>YouTube搜索
+                </a>
+                <a class="nav-link text-dark fw-semibold" href="/events" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-calendar-alt me-1"></i>事件管理
+                </a>
+                <a class="nav-link text-dark fw-semibold" href="/downloads" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-download me-1"></i>视频下载
+                </a>
+                <a class="nav-link active text-dark fw-semibold" href="/crawler" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                    <i class="fas fa-spider me-1"></i>视频爬虫
+                </a>
+            </div>
+            <div class="navbar-nav ms-auto">
+                <div class="nav-item">
+                    <span class="nav-link text-dark fw-semibold" style="text-shadow: 0 1px 2px rgba(0,0,0,0.1);">
+                        <i class="fas fa-spider me-1"></i>视频爬虫系统
+                    </span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 全局语言切换 -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <div class="btn-group" role="group" aria-label="语言切换">
+                    <button type="button" class="btn btn-outline-primary" id="showOriginal" onclick="setGlobalLanguage('original')">
+                        <i class="fas fa-language me-1"></i>显示原文
+                    </button>
+                    <button type="button" class="btn btn-outline-success" id="showTranslated" onclick="setGlobalLanguage('translated')">
+                        <i class="fas fa-language me-1"></i>显示中文
+                    </button>
+                    <button type="button" class="btn btn-outline-info" id="showBoth" onclick="setGlobalLanguage('both')">
+                        <i class="fas fa-language me-1"></i>双语显示
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2 class="text-center mb-3">
+                    <i class="fas fa-spider text-primary me-2"></i>视频爬虫管理
+                </h2>
+                <p class="text-center text-muted">管理爬取网站，创建爬取任务，自动获取视频信息</p>
+            </div>
+        </div>
+
+        <!-- 网站管理区域 -->
+        <div class="search-box">
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-globe me-2"></i>网站管理</h5>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-primary" onclick="showAddWebsiteModal()">
+                        <i class="fas fa-plus me-2"></i>添加网站
+                    </button>
+                </div>
+            </div>
+            <div id="websitesList">
+                <p class="text-muted text-center">正在加载网站列表...</p>
+            </div>
+        </div>
+
+        <!-- 任务管理区域 -->
+        <div class="search-box">
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-tasks me-2"></i>爬取任务</h5>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-success" onclick="showCreateTaskModal()">
+                        <i class="fas fa-plus me-2"></i>创建任务
+                    </button>
+                </div>
+            </div>
+            <div id="tasksList">
+                <p class="text-muted text-center">正在加载任务列表...</p>
+            </div>
+        </div>
+
+        <!-- 视频展示区域 -->
+        <div class="search-box">
+            <div class="row mb-3">
+                <div class="col-md-8">
+                    <h5><i class="fas fa-video me-2"></i>爬取结果</h5>
+                </div>
+                <div class="col-md-4 text-end">
+                    <select class="form-select" id="taskFilter" onchange="filterVideos()">
+                        <option value="">选择任务查看视频</option>
+                    </select>
+                </div>
+            </div>
+            <div id="videosList">
+                <p class="text-muted text-center">请选择任务查看爬取结果</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加网站模态框 -->
+    <div class="modal fade" id="addWebsiteModal" tabindex="-1" aria-labelledby="addWebsiteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addWebsiteModalLabel">添加爬取网站</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addWebsiteForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="websiteName" class="form-label">网站名称</label>
+                                    <input type="text" class="form-control" id="websiteName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="websiteUrl" class="form-label">网站URL</label>
+                                    <input type="url" class="form-control" id="websiteUrl" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="websiteDescription" class="form-label">网站描述</label>
+                            <textarea class="form-control" id="websiteDescription" rows="3"></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="crawlPattern" class="form-label">爬取模式</label>
+                                    <select class="form-select" id="crawlPattern">
+                                        <option value="general">通用模式</option>
+                                        <option value="youtube">YouTube模式</option>
+                                        <option value="bilibili">Bilibili模式</option>
+                                        <option value="custom">自定义模式</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="parseStrategy" class="form-label">解析策略</label>
+                                    <select class="form-select" id="parseStrategy">
+                                        <option value="auto">自动解析</option>
+                                        <option value="custom">自定义选择器</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="customSelectors" style="display: none;">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="containerSelector" class="form-label">容器选择器</label>
+                                        <input type="text" class="form-control" id="containerSelector" placeholder="例如: .video-item">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="titleSelector" class="form-label">标题选择器</label>
+                                        <input type="text" class="form-control" id="titleSelector" placeholder="例如: .title">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="urlSelector" class="form-label">链接选择器</label>
+                                        <input type="text" class="form-control" id="urlSelector" placeholder="例如: a">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="descriptionSelector" class="form-label">描述选择器</label>
+                                        <input type="text" class="form-control" id="descriptionSelector" placeholder="例如: .description">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="addWebsite()">添加网站</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 创建任务模态框 -->
+    <div class="modal fade" id="createTaskModal" tabindex="-1" aria-labelledby="createTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createTaskModalLabel">创建爬取任务</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="createTaskForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="taskName" class="form-label">任务名称</label>
+                                    <input type="text" class="form-control" id="taskName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="taskWebsite" class="form-label">选择网站</label>
+                                    <select class="form-select" id="taskWebsite" required>
+                                        <option value="">请选择网站</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="taskType" class="form-label">任务类型</label>
+                                    <select class="form-select" id="taskType">
+                                        <option value="manual">手动执行</option>
+                                        <option value="scheduled">定时执行</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="scheduledTime" class="form-label">执行时间</label>
+                                    <input type="datetime-local" class="form-control" id="scheduledTime">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="crawlConfig" class="form-label">爬取配置</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableTranslation" checked>
+                                <label class="form-check-label" for="enableTranslation">
+                                    启用翻译（中英文双语）
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableThumbnail">
+                                <label class="form-check-label" for="enableThumbnail">
+                                    获取缩略图
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="enableMetadata">
+                                <label class="form-check-label" for="enableMetadata">
+                                    获取元数据（时长、上传时间、观看数等）
+                                </label>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maxPages" class="form-label">最大爬取页数</label>
+                            <input type="number" class="form-control" id="maxPages" value="1" min="1" max="10">
+                            <small class="form-text text-muted">限制爬取页数以避免过度请求</small>
+                        </div>
+                        <div class="mb-3">
+                            <label for="delayBetweenRequests" class="form-label">请求间隔（秒）</label>
+                            <input type="number" class="form-control" id="delayBetweenRequests" value="1" min="0" step="0.5">
+                            <small class="form-text text-muted">请求之间的延迟时间，避免被网站封禁</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="createTask()">创建任务</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 全局变量
+        let websites = [];
+        let tasks = [];
+        let currentVideos = [];
+        let globalLanguageMode = 'both'; // 全局语言模式：'original', 'translated', 'both'
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadWebsites();
+            loadTasks();
+            
+            // 添加事件监听器
+            setupEventListeners();
+            
+            // 设置默认语言模式
+            setGlobalLanguage('both');
+        });
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 解析策略变化时显示/隐藏自定义选择器
+            document.getElementById('parseStrategy').addEventListener('change', function() {
+                const customSelectors = document.getElementById('customSelectors');
+                if (this.value === 'custom') {
+                    customSelectors.style.display = 'block';
+                } else {
+                    customSelectors.style.display = 'none';
+                }
+            });
+
+            // 任务类型变化时显示/隐藏执行时间
+            document.getElementById('taskType').addEventListener('change', function() {
+                const scheduledTime = document.getElementById('scheduledTime');
+                if (this.value === 'scheduled') {
+                    scheduledTime.style.display = 'block';
+                } else {
+                    scheduledTime.style.display = 'none';
+                }
+            });
+
+            // 爬取模式变化时自动设置解析策略
+            document.getElementById('crawlPattern').addEventListener('change', function() {
+                const parseStrategy = document.getElementById('parseStrategy');
+                if (this.value === 'custom') {
+                    parseStrategy.value = 'custom';
+                    document.getElementById('customSelectors').style.display = 'block';
+                } else {
+                    parseStrategy.value = 'auto';
+                    document.getElementById('customSelectors').style.display = 'none';
+                }
+            });
+        }
+
+        // 加载网站列表
+        async function loadWebsites() {
+            try {
+                const response = await fetch('/api/crawler/websites');
+                const result = await response.json();
+
+                if (result.success) {
+                    websites = result.websites;
+                    displayWebsites(websites);
+                } else {
+                    console.error('加载网站列表失败:', result.error);
+                }
+            } catch (error) {
+                console.error('加载网站列表失败:', error);
+            }
+        }
+
+        // 显示网站列表
+        function displayWebsites(websitesList) {
+            const container = document.getElementById('websitesList');
+            
+            if (websitesList.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">暂无网站</p>';
+                return;
+            }
+
+            let html = '';
+            websitesList.forEach(website => {
+                const statusClass = website.is_active ? 'success' : 'secondary';
+                const statusText = website.is_active ? '启用' : '禁用';
+                
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="mb-1">${website.name}</h6>
+                                    <p class="text-muted mb-1">${website.url}</p>
+                                    <small class="text-muted">${website.description || '暂无描述'}</small>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge bg-${statusClass} mb-2">${statusText}</span>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editWebsite(${website.id})">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteWebsite(${website.id})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 加载任务列表
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/crawler/tasks');
+                const result = await response.json();
+
+                if (result.success) {
+                    tasks = result.tasks;
+                    displayTasks(tasks);
+                    updateTaskFilter();
+                } else {
+                    console.error('加载任务列表失败:', result.error);
+                }
+            } catch (error) {
+                console.error('加载任务列表失败:', error);
+            }
+        }
+
+        // 显示任务列表
+        function displayTasks(tasksList) {
+            const container = document.getElementById('tasksList');
+            
+            if (tasksList.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">暂无任务</p>';
+                return;
+            }
+
+            let html = '';
+            tasksList.forEach(task => {
+                const statusClass = getTaskStatusClass(task.status);
+                const statusIcon = getTaskStatusIcon(task.status);
+                
+                // 修复中文名称显示问题
+                const taskName = task.name || '未命名任务';
+                const websiteName = task.website_name || '未知网站';
+                
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-8">
+                                    <h6 class="mb-1">${taskName}</h6>
+                                    <p class="text-muted mb-1">网站: ${websiteName}</p>
+                                    <small class="text-muted">
+                                        类型: ${task.task_type === 'manual' ? '手动' : '定时'} | 
+                                        视频数: ${task.total_videos} | 
+                                        创建时间: ${formatDateTime(task.created_at)}
+                                    </small>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <span class="badge bg-${statusClass} mb-2">
+                                        <i class="${statusIcon} me-1"></i>${getTaskStatusText(task.status)}
+                                    </span>
+                                    <div class="btn-group btn-group-sm">
+                                        ${task.status === 'pending' ? `
+                                            <button class="btn btn-outline-success" onclick="executeTask(${task.id})">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                        ` : ''}
+                                        <button class="btn btn-outline-primary" onclick="viewTaskVideos(${task.id})">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteTask(${task.id})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 更新任务过滤器
+        function updateTaskFilter() {
+            const filter = document.getElementById('taskFilter');
+            filter.innerHTML = '<option value="">选择任务查看视频</option>';
+            
+            tasks.forEach(task => {
+                const option = document.createElement('option');
+                option.value = task.id;
+                option.textContent = `${task.name} (${task.website_name})`;
+                filter.appendChild(option);
+            });
+        }
+
+        // 显示添加网站模态框
+        function showAddWebsiteModal() {
+            alert('添加网站功能开发中...');
+        }
+
+        // 显示创建任务模态框
+        function showCreateTaskModal() {
+            alert('创建任务功能开发中...');
+        }
+
+        // 执行任务
+        async function executeTask(taskId) {
+            if (!confirm('确定要执行这个任务吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/crawler/tasks/${taskId}/execute`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('任务执行已启动！');
+                    loadTasks();
+                } else {
+                    alert(result.error || '执行任务失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 查看任务视频
+        async function viewTaskVideos(taskId) {
+            try {
+                const response = await fetch(`/api/crawler/tasks/${taskId}/videos`);
+                const result = await response.json();
+
+                if (result.success) {
+                    currentVideos = result.videos;
+                    displayVideos(currentVideos);
+                    
+                    // 设置任务过滤器
+                    document.getElementById('taskFilter').value = taskId;
+                } else {
+                    alert(result.error || '获取视频列表失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 过滤视频
+        function filterVideos() {
+            const taskId = document.getElementById('taskFilter').value;
+            
+            if (!taskId) {
+                document.getElementById('videosList').innerHTML = '<p class="text-muted text-center">请选择任务查看爬取结果</p>';
+                return;
+            }
+
+            const task = tasks.find(t => t.id == taskId);
+            if (task) {
+                viewTaskVideos(taskId);
+            }
+        }
+
+        // 显示视频列表
+        function displayVideos(videosList) {
+            const container = document.getElementById('videosList');
+            
+            if (videosList.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">暂无视频数据</p>';
+                return;
+            }
+
+            let html = '';
+            videosList.forEach(video => {
+                html += `
+                    <div class="card video-card mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    ${video.thumbnail_url ? `
+                                        <img src="${video.thumbnail_url}" class="img-fluid rounded" alt="缩略图" 
+                                             style="max-height: 120px; object-fit: cover;">
+                                    ` : `
+                                        <div class="bg-light rounded d-flex align-items-center justify-content-center" 
+                                             style="height: 120px;">
+                                            <i class="fas fa-video text-muted fa-2x"></i>
+                                        </div>
+                                    `}
+                                </div>
+                                <div class="col-md-9">
+                                    <h6 class="mb-2">
+                                        <span class="original-text">${video.video_title || '无标题'}</span>
+                                        ${video.translated_title ? `
+                                            <span class="translated-text">${video.translated_title}</span>
+                                        ` : ''}
+                                    </h6>
+                                    <p class="text-muted mb-2">
+                                        <span class="original-text">${video.video_description || '暂无描述'}</span>
+                                        ${video.translated_description ? `
+                                            <span class="translated-text">${video.translated_description}</span>
+                                        ` : ''}
+                                    </p>
+                                    <div class="row text-muted small">
+                                        <div class="col-md-3">
+                                            <i class="fas fa-clock me-1"></i>${video.duration || '未知'}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <i class="fas fa-calendar me-1"></i>${video.upload_date || '未知'}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <i class="fas fa-eye me-1"></i>${video.view_count || '未知'}
+                                        </div>
+                                        <div class="col-md-3">
+                                            <i class="fas fa-thumbs-up me-1"></i>${video.like_count || '未知'}
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <a href="${video.video_url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-external-link-alt me-1"></i>查看视频
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+            
+            // 应用当前全局语言设置
+            applyGlobalLanguage();
+        }
+
+        // 切换语言显示
+        function toggleLanguage(element) {
+            const videoCard = element.closest('.video-card');
+            videoCard.classList.toggle('show-translated');
+        }
+
+        // 全局语言切换
+        function setGlobalLanguage(mode) {
+            globalLanguageMode = mode; // 更新全局模式
+            
+            // 更新按钮状态
+            document.getElementById('showOriginal').classList.remove('active');
+            document.getElementById('showTranslated').classList.remove('active');
+            document.getElementById('showBoth').classList.remove('active');
+            
+            if (mode === 'original') {
+                document.getElementById('showOriginal').classList.add('active');
+            } else if (mode === 'translated') {
+                document.getElementById('showTranslated').classList.add('active');
+            } else {
+                document.getElementById('showBoth').classList.add('active');
+            }
+            
+            // 应用语言设置到所有视频卡片
+            applyGlobalLanguage();
+        }
+
+        // 应用全局语言设置到视频卡片
+        function applyGlobalLanguage() {
+            const videoCards = document.querySelectorAll('.video-card');
+            videoCards.forEach(card => {
+                const originalTexts = card.querySelectorAll('.original-text');
+                const translatedTexts = card.querySelectorAll('.translated-text');
+                
+                if (globalLanguageMode === 'original') {
+                    // 只显示原文
+                    originalTexts.forEach(text => text.style.display = 'inline');
+                    translatedTexts.forEach(text => text.style.display = 'none');
+                } else if (globalLanguageMode === 'translated') {
+                    // 只显示翻译
+                    originalTexts.forEach(text => text.style.display = 'none');
+                    translatedTexts.forEach(text => text.style.display = 'inline');
+                } else {
+                    // 双语显示
+                    originalTexts.forEach(text => text.style.display = 'inline');
+                    translatedTexts.forEach(text => text.style.display = 'inline');
+                }
+            });
+        }
+
+        // 显示添加网站模态框
+        function showAddWebsiteModal() {
+            // 重置表单
+            document.getElementById('addWebsiteForm').reset();
+            document.getElementById('customSelectors').style.display = 'none';
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('addWebsiteModal'));
+            modal.show();
+        }
+
+        // 显示创建任务模态框
+        function showCreateTaskModal() {
+            // 重置表单
+            document.getElementById('createTaskForm').reset();
+            document.getElementById('scheduledTime').style.display = 'none';
+            
+            // 填充网站选择器
+            const websiteSelect = document.getElementById('taskWebsite');
+            websiteSelect.innerHTML = '<option value="">请选择网站</option>';
+            websites.forEach(website => {
+                const option = document.createElement('option');
+                option.value = website.id;
+                option.textContent = website.name;
+                websiteSelect.appendChild(option);
+            });
+            
+            // 显示模态框
+            const modal = new bootstrap.Modal(document.getElementById('createTaskModal'));
+            modal.show();
+        }
+
+        // 添加网站
+        async function addWebsite() {
+            const form = document.getElementById('addWebsiteForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const websiteData = {
+                name: document.getElementById('websiteName').value,
+                url: document.getElementById('websiteUrl').value,
+                description: document.getElementById('websiteDescription').value,
+                crawl_pattern: document.getElementById('crawlPattern').value,
+                parse_strategy: document.getElementById('parseStrategy').value
+            };
+
+            // 如果是自定义模式，添加选择器信息
+            if (websiteData.parse_strategy === 'custom') {
+                websiteData.container_selector = document.getElementById('containerSelector').value;
+                websiteData.title_selector = document.getElementById('titleSelector').value;
+                websiteData.url_selector = document.getElementById('urlSelector').value;
+                websiteData.description_selector = document.getElementById('descriptionSelector').value;
+            }
+
+            try {
+                const response = await fetch('/api/crawler/websites', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(websiteData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('网站添加成功！');
+                    bootstrap.Modal.getInstance(document.getElementById('addWebsiteModal')).hide();
+                    loadWebsites();
+                } else {
+                    alert(result.error || '添加网站失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 创建任务
+        async function createTask() {
+            const form = document.getElementById('createTaskForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const taskData = {
+                name: document.getElementById('taskName').value,
+                website_id: parseInt(document.getElementById('taskWebsite').value),
+                task_type: document.getElementById('taskType').value,
+                crawl_config: {
+                    enable_translation: document.getElementById('enableTranslation').checked,
+                    enable_thumbnail: document.getElementById('enableThumbnail').checked,
+                    enable_metadata: document.getElementById('enableMetadata').checked,
+                    max_pages: parseInt(document.getElementById('maxPages').value),
+                    delay_between_requests: parseFloat(document.getElementById('delayBetweenRequests').value)
+                }
+            };
+
+            // 如果是定时任务，添加执行时间
+            if (taskData.task_type === 'scheduled') {
+                const scheduledTime = document.getElementById('scheduledTime').value;
+                if (!scheduledTime) {
+                    alert('请选择执行时间');
+                    return;
+                }
+                taskData.scheduled_time = scheduledTime;
+            }
+
+            try {
+                const response = await fetch('/api/crawler/tasks', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('任务创建成功！');
+                    bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide();
+                    loadTasks();
+                } else {
+                    alert(result.error || '创建任务失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 编辑网站
+        function editWebsite(websiteId) {
+            alert('编辑网站功能开发中...');
+        }
+
+        // 删除网站
+        async function deleteWebsite(websiteId) {
+            if (!confirm('确定要删除这个网站吗？删除后无法恢复。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/crawler/websites/${websiteId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('网站删除成功！');
+                    loadWebsites();
+                } else {
+                    alert(result.error || '删除网站失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 删除任务
+        async function deleteTask(taskId) {
+            if (!confirm('确定要删除这个任务吗？删除后无法恢复。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/crawler/tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('任务删除成功！');
+                    loadTasks();
+                } else {
+                    alert(result.error || '删除任务失败');
+                }
+            } catch (error) {
+                alert('网络错误：' + error.message);
+            }
+        }
+
+        // 获取任务状态样式类
+        function getTaskStatusClass(status) {
+            switch (status) {
+                case 'pending': return 'warning';
+                case 'running': return 'info';
+                case 'completed': return 'success';
+                case 'failed': return 'danger';
+                default: return 'secondary';
+            }
+        }
+
+        // 获取任务状态图标
+        function getTaskStatusIcon(status) {
+            switch (status) {
+                case 'pending': return 'fas fa-clock';
+                case 'running': return 'fas fa-spinner fa-spin';
+                case 'completed': return 'fas fa-check';
+                case 'failed': return 'fas fa-times';
+                default: return 'fas fa-question';
+            }
+        }
+
+        // 获取任务状态文本
+        function getTaskStatusText(status) {
+            switch (status) {
+                case 'pending': return '待执行';
+                case 'running': return '执行中';
+                case 'completed': return '已完成';
+                case 'failed': return '失败';
+                default: return '未知';
+            }
+        }
+
+        // 格式化日期时间
+        function formatDateTime(dateTimeStr) {
+            if (!dateTimeStr) return '未知';
+            try {
+                const date = new Date(dateTimeStr);
+                return date.toLocaleString('zh-CN');
+            } catch (e) {
+                return dateTimeStr;
+            }
+        }
+    </script>
+</body>
+</html>
